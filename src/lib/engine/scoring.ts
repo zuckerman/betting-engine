@@ -55,22 +55,19 @@ export function calculateMetrics(bets: Bet[]): Metrics {
   const clvValues = bets.map((b) => (b.odds_taken / b.odds_closing) - 1);
   const clv_avg = mean(clvValues);
 
-  // 2. Implied probability
-  const impliedProbs = bets.map((b) => 1 / b.odds_closing);
-
-  // 3. Expected Value per bet
+  // 2. Expected Value per bet
   const evValues = bets.map((b) => (b.odds_taken * (1 / b.odds_closing)) - 1);
   const xroi = mean(evValues);
 
-  // 4. Real ROI
+  // 3. Real ROI
   const totalStake = sum(bets.map((b) => b.stake));
   const profit = sum(bets.map((b) => calcBetProfit(b)));
   const roi = totalStake > 0 ? profit / totalStake : 0;
 
-  // 5. Confidence function
+  // 4. Confidence function
   const confidence = 1 - Math.exp(-N / 300);
 
-  // 6. Z-score (variance test)
+  // 5. Z-score (variance test)
   const returns = bets.map((b) => calcBetReturn(b));
   const std = stdDev(returns);
   let z_score = 0;
