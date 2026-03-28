@@ -58,14 +58,14 @@ export const varianceBets: Bet[] = [
     odds_taken: 2.02,
     odds_closing: 1.95,
     stake: 100,
-    result: Math.random() > 0.5 ? "win" : "loss", // should win 50%
+    result: (Math.random() > 0.5 ? ("win" as const) : ("loss" as const)),
   })),
   // Last 100: bad luck streak
   ...Array.from({ length: 100 }, () => ({
     odds_taken: 2.02,
     odds_closing: 1.95,
     stake: 100,
-    result: "loss" as const, // 0% win rate - bad variance
+    result: "loss" as const,
   })),
 ];
 
