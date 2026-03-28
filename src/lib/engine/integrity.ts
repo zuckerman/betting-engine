@@ -2,7 +2,7 @@
  * Overfit detection + integrity checks
  */
 
-import { Bet, Metrics } from "./types";
+import { Bet } from "./types";
 import { calculateMetrics } from "./scoring";
 import { groupBy } from "./utils";
 
