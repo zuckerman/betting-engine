@@ -7,9 +7,10 @@ import { useState } from "react";
 interface SignalFeedProps {
   onBet?: (signal: Signal) => void;
   onSkip?: (signal: Signal) => void;
+  isPro?: boolean;
 }
 
-export default function SignalFeed({ onBet, onSkip }: SignalFeedProps) {
+export default function SignalFeed({ onBet, onSkip, isPro = false }: SignalFeedProps) {
   const { signals, isLoading, error } = useSignals();
   const [skippedIds, setSkippedIds] = useState<Set<string | number>>(new Set());
 
@@ -51,13 +52,16 @@ export default function SignalFeed({ onBet, onSkip }: SignalFeedProps) {
     );
   }
 
+  const displaySignals = isPro ? visibleSignals : visibleSignals.slice(0, 2);
+
   return (
     <div className="space-y-3 mt-4">
       <div className="text-xs text-zinc-400">
-        {visibleSignals.length} {visibleSignals.length === 1 ? "signal" : "signals"} available
+        {displaySignals.length} {displaySignals.length === 1 ? "signal" : "signals"} available
+        {!isPro && signals.length > 2 && ` (${signals.length} total)`}
       </div>
 
-      {visibleSignals.map((signal) => (
+      {displaySignals.map((signal) => (
         <SignalCard
           key={signal.fixture_id}
           signal={signal}

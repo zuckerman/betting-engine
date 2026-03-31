@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 
 export const metadata: Metadata = {
-  title: "Betting Scorer",
-  description: "Production-grade betting metrics engine",
+  title: "Rivva",
+  description: "Quant-driven sports signals engine",
 };
 
 export default function RootLayout({
@@ -13,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className={`${GeistSans.className} ${GeistMono.className} antialiased`}>
         {children}
       </body>
     </html>
