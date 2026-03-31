@@ -2,6 +2,7 @@
  * Type definitions for the betting scorer engine
  */
 
+// Original scoring interface for Phase 1
 export interface Bet {
   id?: string;
   odds_taken: number;      // decimal odds when bet was placed
@@ -12,6 +13,23 @@ export interface Bet {
   league?: string;         // NBA / EPL / etc
   odds_range?: string;     // for segmentation
   settled_at?: Date;
+}
+
+// New prediction-based bet for Phase 2
+export interface PredictionBet {
+  id: string;
+  fixture_id: number;
+  prediction: "home_win" | "away_win" | "draw";
+  odds_taken: number;
+  odds_closing?: number;
+  model_probability: number; // Your model's probability for this outcome
+  stake: number;
+  result?: "home_win" | "away_win" | "draw";
+  status: "open" | "settled";
+  profit?: number;
+  clv?: number | null;
+  edge?: number | null;
+  won?: boolean;
 }
 
 export interface Metrics {

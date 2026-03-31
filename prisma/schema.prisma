@@ -1,58 +1,75 @@
-// This is your Prisma schema file.
-// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
-
-model Match {
-  id            String   @id
-  homeTeam      String
-  awayTeam      String
-  date          DateTime
-  homeGoals     Int?
-  awayGoals     Int?
-  result        String?  // "home_win" | "draw" | "away_win"
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  predictions   Prediction[]
-
-  @@index([date])
+  provider = "postgresql"
 }
 
 model Prediction {
-  id            String   @id @default(cuid())
-  matchId       String
-  match         Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  
-  homeWinProb   Float
-  drawProb      Float
-  awayWinProb   Float
-  
-  homeOdds      Float
-  drawOdds      Float
-  awayOdds      Float
-  
-  predictedResult String  // "home_win" | "draw" | "away_win"
-  
-  createdAt     DateTime @default(now())
-  
+  id                 String   @id @default(uuid())
+
+  // Match identification
+  fixtureId          String?  @unique
+  matchId            String
+  homeTeam           String?
+  awayTeam           String?
+  league             Int?
+
+  // Market & selection
+  market             String   // "over_2.5", "btts", etc
+  selection          String   // "over", "yes", etc
+
+  // Probabilities (all 0-1)
+  modelProbability   Float
+  impliedProbability Float   // from odds
+  externalProbability Float?  // from Sportmonks, etc
+  edge               Float    // modelProb - impliedProb
+
+  // Betting data
+  oddsTaken          Float
+  closingOdds        Float?   // odds at kickoff
+  stake              Float    @default(1)
+
+  // Result
+  result             ResultStatus?  // WIN / LOSS / VOID
+
+  // Timestamps
+  placedAt           DateTime
+  kickoffAt          DateTime?
+  settledAt          DateTime?
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
   @@index([matchId])
-  @@index([createdAt])
+  @@index([placedAt])
+  @@index([kickoffAt])
+  @@index([result])
 }
 
-model Performance {
-  id            String   @id @default(cuid())
-  totalMatches  Int
-  correctPredictions Int
-  accuracy      Float
-  totalProfit   Float
-  roi           Float
-  calculatedAt  DateTime @default(now())
+enum ResultStatus {
+  WIN
+  LOSS
+  VOID
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+
+  // Billing
+  isPro       Boolean  @default(false)
+  stripeId    String?  @unique
+
+  // Onboarding
+  onboarded   Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([email])
 }

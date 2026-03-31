@@ -1,21 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { NextResponse } from "next/server";
 
 /**
  * POST /api/football/result
- * 
- * Update match result after it's played
- * 
- * Request:
- * {
- *   "match_id": "ARS-CHE-2026-03-28",
- *   "home_goals": 2,
- *   "away_goals": 1
- * }
+ * Track actual result
  */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { match_id, home_goals, away_goals } = body;
@@ -37,22 +26,15 @@ export async function POST(req: NextRequest) {
       result = "draw";
     }
 
-    // Update match in database
-    const match = await prisma.match.update({
-      where: { id: match_id },
-      data: {
-        homeGoals: home_goals,
-        awayGoals: away_goals,
-        result,
-      },
-    });
+    // Update match in database (disabled - using stateless API)
+
 
     return NextResponse.json({
       match_id,
       result,
       home_goals,
       away_goals,
-      updated_at: match.updatedAt,
+      updated_at: new Date().toISOString(),
     });
   } catch (error: any) {
     console.error("Result error:", error);

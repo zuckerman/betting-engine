@@ -1,36 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { poissonModel, calculateValue, PoissonInput } from "@/lib/poisson/model";
-
-const prisma = new PrismaClient();
+import { NextResponse } from "next/server";
+import { poissonModel, calculateValue } from "@/lib/poisson/model";
 
 /**
  * POST /api/football/predict
  * 
- * Request:
- * {
- *   "match_id": "ARS-CHE-2026-03-28",
- *   "home_team": {
- *     "name": "Arsenal",
- *     "attack_strength": 1.2,
- *     "defence_strength": 0.9
- *   },
- *   "away_team": {
- *     "name": "Chelsea",
- *     "attack_strength": 1.1,
- *     "defence_strength": 0.95
- *   },
- *   "home_odds": 2.1,
- *   "draw_odds": 3.4,
- *   "away_odds": 3.2,
- *   "league_avg_goals": 1.4
- * }
+ * Poisson model prediction (mock - database disabled)
  */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
-      match_id,
       home_team: homeTeamData,
       away_team: awayTeamData,
       home_odds: homeOdds,
@@ -40,7 +19,7 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // Validate input
-    if (!match_id || !homeTeamData || !awayTeamData) {
+    if (!homeTeamData || !awayTeamData) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -48,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Run Poisson model
-    const input: PoissonInput = {
+    const result = poissonModel({
       homeTeam: {
         name: homeTeamData.name,
         attackStrength: homeTeamData.attack_strength,
@@ -60,9 +39,7 @@ export async function POST(req: NextRequest) {
         defenceStrength: awayTeamData.defence_strength,
       },
       leagueAvgGoals: league_avg_goals,
-    };
-
-    const result = poissonModel(input);
+    });
 
     // Calculate value
     const homeValue = calculateValue(result.homeWinProb, homeOdds);
@@ -78,20 +55,6 @@ export async function POST(req: NextRequest) {
     } else {
       predictedResult = "draw";
     }
-
-    // Save to database
-    const prediction = await prisma.prediction.create({
-      data: {
-        matchId: match_id,
-        homeWinProb: result.homeWinProb,
-        drawProb: result.drawProb,
-        awayWinProb: result.awayWinProb,
-        homeOdds,
-        drawOdds,
-        awayOdds,
-        predictedResult,
-      },
-    });
 
     return NextResponse.json({
       prediction: {
@@ -109,7 +72,7 @@ export async function POST(req: NextRequest) {
         away: awayValue.toFixed(4),
       },
       predicted_result: predictedResult,
-      saved_at: prediction.createdAt,
+      saved_at: new Date().toISOString(),
     });
   } catch (error: any) {
     console.error("Prediction error:", error);
