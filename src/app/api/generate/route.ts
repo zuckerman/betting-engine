@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { poissonModel, calculateValue } from "@/lib/poisson/model";
 
@@ -7,7 +6,6 @@ import { poissonModel, calculateValue } from "@/lib/poisson/model";
  * 
  * Generate live predictions from today's fixtures
  * Runs Poisson model, evaluates edge, inserts into Supabase
- * Designed to be called by cron job hourly
  */
 export async function GET() {
   try {
@@ -139,19 +137,19 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json(
-      {
+    return new Response(
+      JSON.stringify({
         success: true,
         message: `Generated predictions: ${inserted} inserted, ${filtered} filtered`,
         stats: { inserted, filtered },
-      },
-      { status: 200 }
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("Generate error:", err);
-    return NextResponse.json(
-      { error: String(err) },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ error: String(err) }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 /**
@@ -23,9 +22,9 @@ export async function GET() {
 
     if (error) {
       console.error("Fetch error:", error);
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ error: error.message }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -48,19 +47,19 @@ export async function GET() {
       placedAt: p.placed_at,
     }));
 
-    return NextResponse.json(
-      {
+    return new Response(
+      JSON.stringify({
         success: true,
         count: signals.length,
         signals,
-      },
-      { status: 200 }
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("Live signals error:", err);
-    return NextResponse.json(
-      { error: String(err) },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ error: String(err) }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
