@@ -17,7 +17,7 @@ model Prediction {
   matchId            String
   homeTeam           String?
   awayTeam           String?
-  league             Int?
+  league             String?
 
   // Market & selection
   market             String   // "over_2.5", "btts", etc
@@ -28,6 +28,7 @@ model Prediction {
   impliedProbability Float   // from odds
   externalProbability Float?  // from Sportmonks, etc
   edge               Float    // modelProb - impliedProb
+  ev                 Float?   // expected value
 
   // Betting data
   oddsTaken          Float

@@ -1,0 +1,157 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { poissonModel, calculateValue } from "@/lib/poisson/model";
+
+/**
+ * GET /api/generate
+ * 
+ * Generate live predictions from today's fixtures
+ * Runs Poisson model, evaluates edge, inserts into Supabase
+ * Designed to be called by cron job hourly
+ */
+export async function GET() {
+  try {
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_KEY!
+    );
+
+    // Mock fixtures for now (you'll replace with real API)
+    const fixtures = [
+      {
+        id: "fixture_001",
+        league: "EPL",
+        homeTeam: {
+          name: "Arsenal",
+          attackStrength: 1.35,
+          defenceStrength: 1.15,
+        },
+        awayTeam: {
+          name: "Chelsea",
+          attackStrength: 1.28,
+          defenceStrength: 1.08,
+        },
+        homeOdds: 1.95,
+        drawOdds: 3.5,
+        awayOdds: 4.2,
+        leagueAvgGoals: 1.4,
+      },
+      {
+        id: "fixture_002",
+        league: "EPL",
+        homeTeam: {
+          name: "Man City",
+          attackStrength: 1.45,
+          defenceStrength: 1.25,
+        },
+        awayTeam: {
+          name: "Liverpool",
+          attackStrength: 1.4,
+          defenceStrength: 1.2,
+        },
+        homeOdds: 2.1,
+        drawOdds: 3.2,
+        awayOdds: 3.6,
+        leagueAvgGoals: 1.4,
+      },
+    ];
+
+    let inserted = 0;
+    let filtered = 0;
+
+    for (const fixture of fixtures) {
+      // Run Poisson model
+      const result = poissonModel({
+        homeTeam: fixture.homeTeam,
+        awayTeam: fixture.awayTeam,
+        leagueAvgGoals: fixture.leagueAvgGoals,
+      });
+
+      // Evaluate all three outcomes
+      const homeValue = calculateValue(result.homeWinProb, fixture.homeOdds);
+      const drawValue = calculateValue(result.drawProb, fixture.drawOdds);
+      const awayValue = calculateValue(result.awayWinProb, fixture.awayOdds);
+
+      // Find bets with positive EV and sufficient edge
+      const edges = [
+        {
+          market: "match_winner",
+          selection: "home",
+          modelProb: result.homeWinProb,
+          impliedProb: 1 / fixture.homeOdds,
+          odds: fixture.homeOdds,
+          ev: homeValue,
+        },
+        {
+          market: "match_winner",
+          selection: "draw",
+          modelProb: result.drawProb,
+          impliedProb: 1 / fixture.drawOdds,
+          odds: fixture.drawOdds,
+          ev: drawValue,
+        },
+        {
+          market: "match_winner",
+          selection: "away",
+          modelProb: result.awayWinProb,
+          impliedProb: 1 / fixture.awayOdds,
+          odds: fixture.awayOdds,
+          ev: awayValue,
+        },
+      ];
+
+      for (const edge of edges) {
+        const edge_value = edge.modelProb - edge.impliedProb;
+
+        // Filter: EV > 5% and edge > 3%
+        if (edge.ev < 0.05 || edge_value < 0.03) {
+          filtered++;
+          continue;
+        }
+
+        // Calculate stake (flat 1% of bankroll)
+        const bankroll = Number(process.env.BANKROLL || "1000");
+        const stake = bankroll * 0.01;
+
+        // Insert into Supabase
+        const { error } = await supabase.from("predictions").insert({
+          match_id: fixture.id,
+          league: fixture.league,
+          home_team: fixture.homeTeam.name,
+          away_team: fixture.awayTeam.name,
+          market: edge.market,
+          selection: edge.selection,
+          model_probability: edge.modelProb,
+          implied_probability: edge.impliedProb,
+          edge: edge_value,
+          ev: edge.ev,
+          odds_taken: edge.odds,
+          stake,
+          result: "pending",
+          placed_at: new Date(),
+        });
+
+        if (error) {
+          console.error("Insert error:", error);
+        } else {
+          inserted++;
+        }
+      }
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: `Generated predictions: ${inserted} inserted, ${filtered} filtered`,
+        stats: { inserted, filtered },
+      },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error("Generate error:", err);
+    return NextResponse.json(
+      { error: String(err) },
+      { status: 500 }
+    );
+  }
+}
