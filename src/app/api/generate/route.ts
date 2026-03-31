@@ -196,6 +196,12 @@ export async function GET() {
           continue;
         }
 
+        // Signal quality flag: HIGH vs NORMAL
+        // HIGH = very strong signal (EV > 8%, edge > 5%)
+        // NORMAL = baseline (EV 5-8%, edge 3-5%)
+        const signalQuality =
+          edge.ev > 0.08 && edge_value > 0.05 ? "HIGH" : "NORMAL";
+
         // Calculate stake (flat 1% of bankroll, adjusted by system state)
         const bankroll = Number(process.env.BANKROLL || "1000");
         let baseStake = bankroll * 0.01;
@@ -215,6 +221,7 @@ export async function GET() {
           ev: edge.ev,
           odds_taken: edge.odds,
           stake,
+          signal_quality: signalQuality,
           result: "pending",
           placed_at: new Date(),
         });

@@ -29,6 +29,7 @@ model Prediction {
   externalProbability Float?  // from Sportmonks, etc
   edge               Float    // modelProb - impliedProb
   ev                 Float?   // expected value
+  signalQuality      String   @default("NORMAL") // HIGH or NORMAL
 
   // Betting data
   oddsTaken          Float

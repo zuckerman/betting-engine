@@ -169,6 +169,21 @@ export async function GET() {
       oddsRangeMetrics[range] = calculateMetrics(preds);
     });
 
+    // Segment by signal quality (HIGH vs NORMAL)
+    const bySignalQuality: { [key: string]: any } = {};
+    predictions.forEach((pred: Prediction) => {
+      const quality = pred.signal_quality || 'NORMAL';
+      if (!bySignalQuality[quality]) {
+        bySignalQuality[quality] = [];
+      }
+      bySignalQuality[quality].push(pred);
+    });
+
+    const signalQualityMetrics: { [key: string]: any } = {};
+    Object.entries(bySignalQuality).forEach(([quality, preds]: [string, any]) => {
+      signalQualityMetrics[quality] = calculateMetrics(preds);
+    });
+
     // Determine system state based on rolling CLV
     const systemState = determineSystemState(
       rolling50Metrics.avgClv,
@@ -183,6 +198,7 @@ export async function GET() {
       segmentation: {
         byLeague: leagueMetrics,
         byOddsRange: oddsRangeMetrics,
+        bySignalQuality: signalQualityMetrics,
       },
       benchmark: {
         targetBeatingMarket: 55,
