@@ -1,35 +1,63 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault()
+    if (!email) return
 
+    setLoading(true)
     try {
-      // TODO: Integrate with Supabase/Auth0
-      // For now: simple redirect to onboarding
-      localStorage.setItem("user_email", email);
-      router.push("/onboarding");
-    } finally {
-      setLoading(false);
+      const { error } = await supabase.auth.signInWithOtp({ email })
+      if (error) {
+        alert('Error: ' + error.message)
+      } else {
+        setSubmitted(true)
+      }
+    } catch (err) {
+      console.error('Sign in error:', err)
+      alert('Error signing in')
     }
+    setLoading(false)
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <div>
+            <h2 className="text-2xl font-bold">Check your email</h2>
+            <p className="text-gray-600 mt-2">
+              We sent a magic link to <strong>{email}</strong>
+            </p>
+          </div>
+          <button
+            onClick={() => setSubmitted(false)}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            Try different email
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">
       <div className="w-full max-w-md space-y-8">
         <div>
-          <Link href="/" className="text-3xl font-bold block text-center mb-8">
-            Rivva
-          </Link>
+          <h1 className="text-3xl font-bold text-center mb-8">Rivva</h1>
           <h2 className="text-2xl font-bold text-center">Get Access</h2>
           <p className="text-center text-gray-600 mt-2">
             Sign in to view live signals and edge analysis
@@ -45,7 +73,8 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:border-black"
+              disabled={loading}
+              className="w-full mt-1 px-4 py-2 border rounded-lg focus:outline-none focus:border-black disabled:opacity-50"
             />
           </div>
 
