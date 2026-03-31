@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = createClient(
       process.env.SUPABASE_URL!,
@@ -31,15 +30,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { success: true, message: "Row inserted successfully", data },
-      { status: 200 }
+    return new Response(
+      JSON.stringify({ success: true, message: "Row inserted successfully", data }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("Test insert error:", err);
-    return NextResponse.json(
-      { error: String(err) },
-      { status: 500 }
+    return new Response(
+      JSON.stringify({ error: String(err) }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
