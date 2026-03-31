@@ -85,3 +85,22 @@ model User {
 
   @@index([email])
 }
+
+model DailySnapshot {
+  id                String   @id @default(uuid())
+  date              String   @unique // YYYY-MM-DD
+  totalBets         Int
+  rollingClv        Float
+  highQualityClv    Float    @default(0)
+  normalQualityClv  Float    @default(0)
+  beatRate          Float
+  expectedProfit    Float
+  actualProfit      Float
+  divergence        Float
+  systemState       String   // GREEN, AMBER, RED
+  timestamp         DateTime @default(now())
+
+  @@index([date])
+  @@index([timestamp])
+}
+
