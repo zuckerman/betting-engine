@@ -1,11 +1,84 @@
 import { createClient } from "@supabase/supabase-js";
 import { poissonModel, calculateValue } from "@/lib/poisson/model";
 
+interface Prediction {
+  [key: string]: any;
+}
+
+/**
+ * Determine system state based on rolling CLV and beat rate
+ */
+async function getSystemState(supabase: any) {
+  try {
+    const { data: predictions, error } = await supabase
+      .from("predictions")
+      .select("*")
+      .not("result", "is", null)
+      .not("closing_odds", "is", null)
+      .order("settled_at", { ascending: false })
+      .limit(50);
+
+    if (error || !predictions || predictions.length === 0) {
+      // Default to AMBER for caution if no data
+      return {
+        state: "AMBER",
+        stakeMultiplier: 0.6,
+        message: "Insufficient data, stakes reduced to 60%",
+      };
+    }
+
+    // Calculate rolling metrics (last 50)
+    let totalClv = 0;
+    let beatingMarketCount = 0;
+
+    predictions.forEach((pred: Prediction) => {
+      const clv = pred.closing_odds - pred.odds_taken;
+      totalClv += clv;
+
+      if (pred.closing_odds < pred.odds_taken) {
+        beatingMarketCount++;
+      }
+    });
+
+    const avgClv = totalClv / predictions.length;
+    const beatRate = (beatingMarketCount / predictions.length) * 100;
+
+    // System state logic
+    if (avgClv > 0 && beatRate > 55) {
+      return {
+        state: "GREEN",
+        stakeMultiplier: 1.0,
+        message: "Edge confirmed",
+      };
+    } else if (avgClv >= -0.005 && beatRate >= 48 && beatRate <= 55) {
+      return {
+        state: "AMBER",
+        stakeMultiplier: 0.6,
+        message: "Uncertain, stakes at 60%",
+      };
+    } else {
+      return {
+        state: "RED",
+        stakeMultiplier: 0,
+        message: "Betting paused",
+      };
+    }
+  } catch (err) {
+    // Default to AMBER on error
+    return {
+      state: "AMBER",
+      stakeMultiplier: 0.6,
+      message: "Error checking state, stakes reduced",
+    };
+  }
+}
+
 /**
  * GET /api/generate
  * 
  * Generate live predictions from today's fixtures
  * Runs Poisson model, evaluates edge, inserts into Supabase
+ * Respects system state (GREEN/AMBER/RED) for stake control
  */
 export async function GET() {
   try {
@@ -13,6 +86,22 @@ export async function GET() {
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_KEY!
     );
+
+    // Check system state (GREEN/AMBER/RED)
+    const systemState = await getSystemState(supabase);
+
+    // If RED, pause betting entirely
+    if (systemState.stakeMultiplier === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Betting paused: ${systemState.message}`,
+          systemState,
+          stats: { inserted: 0, filtered: 0, reason: "RED state" },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     // Mock fixtures for now (you'll replace with real API)
     const fixtures = [
@@ -107,9 +196,10 @@ export async function GET() {
           continue;
         }
 
-        // Calculate stake (flat 1% of bankroll)
+        // Calculate stake (flat 1% of bankroll, adjusted by system state)
         const bankroll = Number(process.env.BANKROLL || "1000");
-        const stake = bankroll * 0.01;
+        let baseStake = bankroll * 0.01;
+        const stake = baseStake * systemState.stakeMultiplier;
 
         // Insert into Supabase
         const { error } = await supabase.from("predictions").insert({
@@ -141,7 +231,8 @@ export async function GET() {
       JSON.stringify({
         success: true,
         message: `Generated predictions: ${inserted} inserted, ${filtered} filtered`,
-        stats: { inserted, filtered },
+        stats: { inserted, filtered, stakeMultiplier: systemState.stakeMultiplier },
+        systemState,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );

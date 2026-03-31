@@ -24,9 +24,9 @@ export async function GET() {
 
     if (error) {
       console.error("Supabase insert error:", error);
-      return NextResponse.json(
-        { error: error.message, details: error },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ error: error.message, details: error }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 

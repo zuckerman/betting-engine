@@ -58,6 +58,16 @@ enum ResultStatus {
   VOID
 }
 
+model OddsSnapshot {
+  id        String   @id @default(uuid())
+  matchId   String
+  odds      Float
+  timestamp DateTime @default(now())
+
+  @@index([matchId])
+  @@index([timestamp])
+}
+
 model User {
   id          String   @id @default(uuid())
   email       String   @unique
