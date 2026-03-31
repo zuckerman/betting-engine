@@ -12,6 +12,10 @@ datasource db {
 model Prediction {
   id                 String   @id @default(uuid())
 
+  // Competition tracking (for regime analysis)
+  competition        String   @default("epl")  // "epl", "world_cup", "cricket", etc
+  season             String?  // "2025-26", "world_cup_2026", etc
+
   // Match identification
   fixtureId          String?  @unique
   matchId            String
@@ -48,6 +52,8 @@ model Prediction {
   updatedAt          DateTime @updatedAt
 
   @@index([matchId])
+  @@index([competition])
+  @@index([season])
   @@index([placedAt])
   @@index([kickoffAt])
   @@index([result])
@@ -88,6 +94,11 @@ model User {
 
 model DailySnapshot {
   id                String   @id @default(uuid())
+  
+  // Regime identification
+  competition       String   @default("epl")  // separate tracking per market
+  season            String?  // "2025-26", "world_cup_2026", etc
+  
   date              String   @unique // YYYY-MM-DD
   totalBets         Int
   rollingClv        Float
@@ -101,6 +112,8 @@ model DailySnapshot {
   timestamp         DateTime @default(now())
 
   @@index([date])
+  @@index([competition])
+  @@index([season])
   @@index([timestamp])
 }
 
