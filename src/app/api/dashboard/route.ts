@@ -80,9 +80,65 @@ export async function GET(req: Request) {
     // Real vs shadow
     const { data: shadowBets } = await supabase
       .from('bets')
-      .select('*', { count: 'exact' })
+      .select('*')
       .eq('experimentId', experimentId)
       .eq('isShadow', true)
+
+    // Calculate real vs shadow CLV
+    const realClvValues = validBets.filter(b => !b.isShadow).map(b => b.clv)
+    const shadowClvValues = shadowBets?.filter(b => b.clv !== null && b.result !== null).map(b => b.clv) || []
+    const realClv = realClvValues.length > 0 ? realClvValues.reduce((a, b) => a + b, 0) / realClvValues.length : 0
+    const shadowClv = shadowClvValues.length > 0 ? shadowClvValues.reduce((a, b) => a + b, 0) / shadowClvValues.length : 0
+
+    // Get balance history (last 30 days, grouped by date)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const { data: balanceHistory } = await supabase
+      .from('bets')
+      .select('placedAt, stake, result, clv', { count: 'exact' })
+      .eq('experimentId', experimentId)
+      .gte('placedAt', thirtyDaysAgo.toISOString())
+      .order('placedAt', { ascending: true })
+
+    // Build balance curve (cumulative)
+    let runningBalance = bankroll?.startingBalance || 1000
+    const balanceCurve = balanceHistory?.reduce((acc: any[], bet: any) => {
+      if (bet.result === 'WIN') {
+        runningBalance += bet.stake
+      } else if (bet.result === 'LOSS') {
+        runningBalance -= bet.stake
+      }
+      const date = new Date(bet.placedAt).toLocaleDateString()
+      return acc.length === 0 || acc[acc.length - 1].date !== date
+        ? [...acc, { date, balance: runningBalance }]
+        : acc
+    }, []) || []
+
+    // Get CLV history (last 30 days)
+    const { data: clvHistory } = await supabase
+      .from('bets')
+      .select('placedAt, clv')
+      .eq('experimentId', experimentId)
+      .eq('isShadow', false)
+      .not('clv', 'is', null)
+      .gte('placedAt', thirtyDaysAgo.toISOString())
+      .order('placedAt', { ascending: true })
+
+    // Group CLV by date
+    const clvCurve = clvHistory?.reduce((acc: any[], bet: any) => {
+      const date = new Date(bet.placedAt).toLocaleDateString()
+      const existing = acc.find(x => x.date === date)
+      if (existing) {
+        existing.values.push(bet.clv)
+      } else {
+        acc.push({ date, values: [bet.clv] })
+      }
+      return acc
+    }, []).map(d => ({
+      date: d.date,
+      clv: Number((d.values.reduce((a: number, b: number) => a + b, 0) / d.values.length).toFixed(4))
+    })) || []
 
     const metrics = {
       totalBets: bets.length,
@@ -95,14 +151,21 @@ export async function GET(req: Request) {
       currentBalance: bankroll?.currentBalance || 0,
       peakBalance: bankroll?.peakBalance || 0,
       startingBalance: bankroll?.startingBalance || 0,
-      realBets: bets.length,
-      shadowBets: shadowBets?.[0]?.count || 0
+      realBets: bets.filter(b => !b.isShadow).length,
+      shadowBets: shadowBets?.length || 0,
+      realVsShadow: {
+        realClv: Number(realClv.toFixed(4)),
+        shadowClv: Number(shadowClv.toFixed(4))
+      },
+      clvTrend: avgClv > 0 ? 'up' : avgClv < 0 ? 'down' : 'neutral'
     }
 
     return NextResponse.json({
       success: true,
       experiment,
-      metrics
+      metrics,
+      balanceHistory: balanceCurve,
+      clvHistory: clvCurve
     })
   } catch (error) {
     console.error('[DASHBOARD] Error:', error)
