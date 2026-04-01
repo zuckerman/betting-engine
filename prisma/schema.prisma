@@ -44,6 +44,28 @@ model Bankroll {
   @@index([experimentId])
 }
 
+model ModelVersion {
+  id                String   @id @default(uuid())
+  name              String   // "poisson_v1", "xgboost_v1", etc
+  version           String   // "1.0", "1.1", etc
+  description       String?
+  
+  predictions       Prediction[]
+  bets              Bet[]
+  
+  createdAt         DateTime @default(now())
+  
+  @@unique([name, version])
+  @@index([name])
+}
+
+model GlobalBankroll {
+  id                String   @id @default(uuid())
+  totalBalance      Float
+  peakBalance       Float
+  updatedAt         DateTime @default(now()) @updatedAt
+}
+
 model Prediction {
   id                 String   @id @default(uuid())
 
@@ -51,9 +73,13 @@ model Prediction {
   experimentId       String
   experiment         Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
 
+  // Model tracking
+  modelId            String
+  model              ModelVersion @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
   // Competition tracking (for regime analysis)
-  competition        String   @default("epl")  // "epl", "world_cup", "cricket", etc
-  season             String?  // "2025-26", "world_cup_2026", etc
+  competition        String   @default("epl")
+  season             String?
 
   // Match identification
   fixtureId          String?
@@ -63,25 +89,25 @@ model Prediction {
   league             String?
 
   // Market & selection
-  market             String   // "over_2.5", "btts", etc
-  selection          String   // "over", "yes", etc
+  market             String
+  selection          String
 
   // Probabilities (all 0-1)
   modelProbability   Float
-  impliedProbability Float   // from odds
-  externalProbability Float?  // from Sportmonks, etc
-  edge               Float    // modelProb - impliedProb
-  ev                 Float?   // expected value
-  signalQuality      String   @default("NORMAL") // HIGH or NORMAL
+  impliedProbability Float
+  externalProbability Float?
+  edge               Float
+  ev                 Float?
+  signalQuality      String   @default("NORMAL")
   modelVersion       String   @default("v1")
 
   // Betting data
   oddsTaken          Float
-  closingOdds        Float?   // odds at kickoff
+  closingOdds        Float?
   stake              Float    @default(1)
 
   // Result
-  result             ResultStatus?  // WIN / LOSS / VOID
+  result             ResultStatus?
 
   // Timestamps
   placedAt           DateTime
@@ -92,6 +118,7 @@ model Prediction {
   updatedAt          DateTime @updatedAt
 
   @@index([experimentId])
+  @@index([modelId])
   @@index([matchId])
   @@index([competition])
   @@index([season])
@@ -109,9 +136,12 @@ enum ResultStatus {
 model Bet {
   id                String   @id @default(uuid())
   
-  // Experiment + Prediction tracking
+  // Experiment + Model tracking
   experimentId      String
   experiment        Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  
+  modelId           String
+  model             ModelVersion @relation(fields: [modelId], references: [id], onDelete: Cascade)
   
   predictionId      String?
   
@@ -123,6 +153,10 @@ model Bet {
   oddsTaken         Float
   stake             Float
   impliedProbTaken  Float    // 1 / odds_taken
+  
+  // Allocation weights
+  modelWeight       Float    @default(1.0)
+  marketWeight      Float    @default(1.0)
   
   // Shadow bets (tracking skipped predictions)
   isShadow          Boolean  @default(false)
@@ -143,6 +177,7 @@ model Bet {
   updatedAt         DateTime @updatedAt
   
   @@index([experimentId])
+  @@index([modelId])
   @@index([matchId])
   @@index([isShadow])
   @@index([result])
