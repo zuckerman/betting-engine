@@ -6,7 +6,7 @@ export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Protect dashboard routes
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/signals') || pathname.startsWith('/performance')) {
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/signals') || pathname.startsWith('/performance') || pathname.startsWith('/monitor')) {
     if (!authToken) {
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
@@ -16,5 +16,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/signals/:path*', '/performance/:path*'],
+  matcher: ['/dashboard/:path*', '/signals/:path*', '/performance/:path*', '/monitor/:path*'],
 }
