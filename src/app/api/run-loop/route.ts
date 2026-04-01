@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 /**
  * MAIN ORCHESTRATOR
  * Runs the complete betting loop:
@@ -21,7 +16,20 @@ const supabase = createClient(
  * 10. Update bankroll
  */
 
+let supabase: any = null
+
+function getSupabase() {
+  if (!supabase) {
+    supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return supabase
+}
+
 export async function POST() {
+  const supabase = getSupabase()
   try {
     console.log('[RUN-LOOP] Starting orchestrator...')
 
@@ -34,7 +42,7 @@ export async function POST() {
     console.log(`[RUN-LOOP] Active experiment: ${experiment.name}`)
 
     // 2. Check CLV health (CRITICAL)
-    const isHealthy = await checkCLVHealth(experiment.id)
+    const isHealthy = await checkCLVHealth(experiment.id, experiment.name)
     if (!isHealthy) {
       console.error('[RUN-LOOP] CLV NEGATIVE → SYSTEM HALTED')
       return NextResponse.json(
@@ -106,7 +114,7 @@ async function getActiveExperiment() {
   return data
 }
 
-async function checkCLVHealth(experimentId: string): Promise<boolean> {
+async function checkCLVHealth(experimentId: string, experimentName: string): Promise<boolean> {
   try {
     // Get rolling CLV (last 50 bets)
     const { data: bets, error } = await supabase
@@ -133,10 +141,36 @@ async function checkCLVHealth(experimentId: string): Promise<boolean> {
     // Kill switch rules
     if (avgClv < 0) {
       console.error('[CLV-HEALTH] avg_clv < 0 → STOP')
+      
+      // Send Slack alert
+      try {
+        const { sendSlackAlert } = await import('../../../../lib/slack')
+        await sendSlackAlert('STOP', {
+          experimentName,
+          metrics: { avgClv, positiveClvRate: positiveRate * 100, drawdown: 0, totalBets: bets.length },
+          timestamp: new Date().toISOString()
+        })
+      } catch (err) {
+        console.error('[SLACK] Error sending alert:', err)
+      }
+      
       return false
     }
     if (positiveRate < 0.48) {
       console.error('[CLV-HEALTH] positive_rate < 48% → STOP')
+      
+      // Send Slack alert
+      try {
+        const { sendSlackAlert } = await import('../../../../lib/slack')
+        await sendSlackAlert('STOP', {
+          experimentName,
+          metrics: { avgClv, positiveClvRate: positiveRate * 100, drawdown: 0, totalBets: bets.length },
+          timestamp: new Date().toISOString()
+        })
+      } catch (err) {
+        console.error('[SLACK] Error sending alert:', err)
+      }
+      
       return false
     }
 

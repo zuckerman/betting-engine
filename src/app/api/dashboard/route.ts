@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 /**
  * Dashboard endpoint - returns all key metrics
  * GET /api/dashboard?experimentId=xxx
  */
 
 export async function GET(req: Request) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
   try {
     const { searchParams } = new URL(req.url)
     const experimentId = searchParams.get('experimentId')
