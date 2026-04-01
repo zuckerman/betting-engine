@@ -9,15 +9,54 @@ datasource db {
   provider = "postgresql"
 }
 
+model Experiment {
+  id            String   @id @default(uuid())
+  name          String   @unique // "EPL_2026_V1", "WC_2026_V1"
+  sport         String   @default("football")
+  competition   String   // "EPL", "WorldCup", etc
+  status        String   @default("active") // "active" / "complete"
+  
+  startDate     DateTime @default(now())
+  endDate       DateTime?
+  
+  predictions   Prediction[]
+  bets          Bet[]
+  bankroll      Bankroll?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([status])
+  @@index([competition])
+}
+
+model Bankroll {
+  id                String   @id @default(uuid())
+  experimentId      String   @unique
+  experiment        Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  
+  startingBalance   Float
+  currentBalance    Float
+  peakBalance       Float
+  
+  updatedAt         DateTime @default(now()) @updatedAt
+  
+  @@index([experimentId])
+}
+
 model Prediction {
   id                 String   @id @default(uuid())
+
+  // Experiment tracking
+  experimentId       String
+  experiment         Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
 
   // Competition tracking (for regime analysis)
   competition        String   @default("epl")  // "epl", "world_cup", "cricket", etc
   season             String?  // "2025-26", "world_cup_2026", etc
 
   // Match identification
-  fixtureId          String?  @unique
+  fixtureId          String?
   matchId            String
   homeTeam           String?
   awayTeam           String?
@@ -34,6 +73,7 @@ model Prediction {
   edge               Float    // modelProb - impliedProb
   ev                 Float?   // expected value
   signalQuality      String   @default("NORMAL") // HIGH or NORMAL
+  modelVersion       String   @default("v1")
 
   // Betting data
   oddsTaken          Float
@@ -51,6 +91,7 @@ model Prediction {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  @@index([experimentId])
   @@index([matchId])
   @@index([competition])
   @@index([season])
@@ -63,6 +104,50 @@ enum ResultStatus {
   WIN
   LOSS
   VOID
+}
+
+model Bet {
+  id                String   @id @default(uuid())
+  
+  // Experiment + Prediction tracking
+  experimentId      String
+  experiment        Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  
+  predictionId      String?
+  
+  // Match + market
+  matchId           String
+  market            String   // "home_win", "draw", "away_win", "over_2.5", etc
+  
+  // Odds & stake
+  oddsTaken         Float
+  stake             Float
+  impliedProbTaken  Float    // 1 / odds_taken
+  
+  // Shadow bets (tracking skipped predictions)
+  isShadow          Boolean  @default(false)
+  
+  // Result & CLV
+  result            ResultStatus?
+  closingOdds       Float?
+  clv               Float?   // (closing_odds / odds_taken) - 1
+  
+  // Settlement
+  settled           Boolean  @default(false)
+  
+  // Timestamps
+  placedAt          DateTime @default(now())
+  settledAt         DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([experimentId])
+  @@index([matchId])
+  @@index([isShadow])
+  @@index([result])
+  @@index([settled])
+  @@index([placedAt])
 }
 
 model OddsSnapshot {
@@ -144,11 +229,12 @@ model ShadowBet {
 model DailySnapshot {
   id                String   @id @default(uuid())
   
-  // Regime identification
-  competition       String   @default("epl")  // separate tracking per market
-  season            String?  // "2025-26", "world_cup_2026", etc
+  // Experiment + Regime
+  experimentId      String
+  competition       String   @default("epl")
+  season            String?
   
-  date              String   @unique // YYYY-MM-DD
+  date              String   // YYYY-MM-DD
   totalBets         Int
   rollingClv        Float
   highQualityClv    Float    @default(0)
@@ -160,6 +246,7 @@ model DailySnapshot {
   systemState       String   // GREEN, AMBER, RED
   timestamp         DateTime @default(now())
 
+  @@index([experimentId])
   @@index([date])
   @@index([competition])
   @@index([season])
