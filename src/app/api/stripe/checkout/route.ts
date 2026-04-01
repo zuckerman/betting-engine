@@ -1,32 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { prisma } from "@/lib/prisma";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, email } = await request.json();
+    const { email } = await request.json();
 
-    if (!userId || !email) {
+    if (!email) {
       return NextResponse.json(
-        { error: "Missing userId or email" },
+        { error: "Missing email" },
         { status: 400 }
       );
-    }
-
-    // Get or create user
-    let user = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          id: userId,
-          email,
-        },
-      });
     }
 
     // Create Stripe checkout session
@@ -46,7 +31,7 @@ export async function POST(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_URL}/pricing`,
 
       metadata: {
-        userId: user.id,
+        email: email,
       },
     });
 

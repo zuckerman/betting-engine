@@ -92,6 +92,55 @@ model User {
   @@index([email])
 }
 
+model ShadowBet {
+  id                 String   @id @default(cuid())
+  
+  // Regime tracking
+  competition        String   @default("epl")
+  season             String?
+  
+  // Why was this skipped?
+  skipReason         String   // "low_ev", "below_edge_threshold", "high_variance", "manual_filter", etc
+  
+  // Match identification
+  matchId            String
+  homeTeam           String?
+  awayTeam           String?
+  league             String?
+  
+  // Market & selection
+  market             String   // "over_2.5", "btts", etc
+  selection          String   // "over", "yes", etc
+  
+  // Probabilities (what would have been)
+  modelProbability   Float
+  impliedProbability Float
+  edge               Float
+  ev                 Float?
+  
+  // Odds (if we had taken it)
+  oddsTaken          Float?
+  closingOdds        Float?   // actual closing odds
+  
+  // Result (if it had been taken)
+  result             ResultStatus?  // WIN / LOSS / VOID
+  clvWouldHaveBeen   Float?    // closing_odds - odds_taken (for analysis)
+  
+  // Timestamps
+  analyzedAt         DateTime  // when we considered it
+  kickoffAt          DateTime?
+  settledAt          DateTime?
+  
+  createdAt          DateTime  @default(now())
+  
+  @@index([matchId])
+  @@index([competition])
+  @@index([skipReason])
+  @@index([analyzedAt])
+  @@index([kickoffAt])
+  @@index([result])
+}
+
 model DailySnapshot {
   id                String   @id @default(uuid())
   

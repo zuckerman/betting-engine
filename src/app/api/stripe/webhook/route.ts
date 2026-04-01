@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { prisma } from "@/lib/prisma";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
@@ -24,18 +23,13 @@ export async function POST(request: NextRequest) {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+      console.log(`✅ Checkout completed for ${session.customer_email}`);
+      // Supabase will handle user update via separate webhook or manual trigger
+    }
 
-      if (session.customer_email && session.metadata?.userId) {
-        await prisma.user.update({
-          where: { id: session.metadata.userId },
-          data: {
-            isPro: true,
-            stripeId: session.customer as string,
-          },
-        });
-
-        console.log(`✅ User ${session.customer_email} upgraded to Pro`);
-      }
+    if (event.type === "customer.subscription.deleted") {
+      console.log(`⚠️ Subscription cancelled`);
+      // Supabase will handle user downgrade
     }
 
     return NextResponse.json({ received: true });
