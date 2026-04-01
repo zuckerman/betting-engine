@@ -13,9 +13,9 @@ const supabase = createClient(
  * Provides institutional-grade metrics for analysis
  */
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json()
+    const body = await request.json()
     const { experimentId, query } = body
 
     if (!experimentId || !query) {
@@ -84,7 +84,7 @@ async function getClvHealth(experimentId: string) {
     .select('clv')
     .eq('experimentId', experimentId)
     .eq('isShadow', false)
-    .is('clv', null, { not: true })
+    .not('clv', 'is', null)
 
   if (error || !bets) return null
 
@@ -146,7 +146,7 @@ async function getRealVsShadow(experimentId: string) {
     .from('bets')
     .select('isShadow, clv')
     .eq('experimentId', experimentId)
-    .is('clv', null, { not: true })
+    .not('clv', 'is', null)
 
   if (error || !bets) return null
 
@@ -182,7 +182,7 @@ async function getMarketBreakdown(experimentId: string) {
     .select('market, clv, result')
     .eq('experimentId', experimentId)
     .eq('isShadow', false)
-    .is('clv', null, { not: true })
+    .not('clv', 'is', null)
 
   if (error || !bets) return null
 
@@ -212,7 +212,7 @@ async function getOddsAnalysis(experimentId: string) {
     .select('oddsTaken, clv')
     .eq('experimentId', experimentId)
     .eq('isShadow', false)
-    .is('clv', null, { not: true })
+    .not('clv', 'is', null)
 
   if (error || !bets) return null
 
@@ -239,7 +239,7 @@ async function getClvTrend(experimentId: string) {
     .select('placedAt, clv')
     .eq('experimentId', experimentId)
     .eq('isShadow', false)
-    .is('clv', null, { not: true })
+    .not('clv', 'is', null)
     .order('placedAt', { ascending: true })
 
   if (error || !bets || bets.length < 10) return null
@@ -272,7 +272,7 @@ async function getWinLossRatio(experimentId: string) {
     .select('result')
     .eq('experimentId', experimentId)
     .eq('isShadow', false)
-    .is('result', null, { not: true })
+    .not('result', 'is', null)
 
   if (error || !bets) return null
 
@@ -292,7 +292,7 @@ async function getWinLossRatio(experimentId: string) {
   }
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   return NextResponse.json({
     message: 'Use POST with query parameter',
     allowedQueries: [

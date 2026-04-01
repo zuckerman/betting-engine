@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { poissonModel } from '@/lib/poisson'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +21,7 @@ const supabase = createClient(
  * 10. Update bankroll
  */
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
     console.log('[RUN-LOOP] Starting orchestrator...')
 
@@ -107,12 +106,6 @@ async function getActiveExperiment() {
   return data
 }
 
-interface CLVHealth {
-  avg_clv: number
-  positive_rate: number
-  sample_size: number
-}
-
 async function checkCLVHealth(experimentId: string): Promise<boolean> {
   try {
     // Get rolling CLV (last 50 bets)
@@ -121,7 +114,7 @@ async function checkCLVHealth(experimentId: string): Promise<boolean> {
       .select('clv')
       .eq('experimentId', experimentId)
       .eq('isShadow', false)
-      .is('clv', null, { not: true }) // not null
+      .not('clv', 'is', null) // not null
       .order('placedAt', { ascending: false })
       .limit(50)
 
@@ -324,7 +317,7 @@ async function calculateCLV(experimentId: string) {
       .select('*')
       .eq('experimentId', experimentId)
       .is('clv', null) // no CLV yet
-      .is('result', null, { not: true }) // has result
+      .not('result', 'is', null) // has result
 
     if (error || !bets) return
 
@@ -362,12 +355,12 @@ async function updateBankroll(experimentId: string) {
       .select('*')
       .eq('experimentId', experimentId)
       .eq('settled', false)
-      .is('result', null, { not: true })
+      .not('result', 'is', null)
 
     if (betsError || !bets) return
 
     let totalPnl = 0
-    const settledBetIds = []
+    const settledBetIds: string[] = []
 
     for (const bet of bets) {
       if (bet.result === 'WIN') {

@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContai
 export default function Monitor() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [experimentId, setExperimentId] = useState("")
+  const [, setExperimentId] = useState("")
 
   useEffect(() => {
     // Get experimentId from localStorage or URL
@@ -167,9 +167,9 @@ export default function Monitor() {
           <div style={{ fontSize: 12, color: "#a1a1a6", marginBottom: 8 }}>FILTER QUALITY</div>
           <div style={{ fontSize: 14 }}>
             {m.realVsShadow.realClv > m.realVsShadow.shadowClv ? (
-              <span style={{ color: "#10b981" }}>✅ Real CLV > Shadow CLV (filter working)</span>
+              <span style={{ color: "#10b981" }}>✅ Real CLV {'>'} Shadow CLV (filter working)</span>
             ) : m.realVsShadow.realClv < m.realVsShadow.shadowClv ? (
-              <span style={{ color: "#ef4444" }}>❌ Shadow CLV > Real CLV (filter broken)</span>
+              <span style={{ color: "#ef4444" }}>❌ Shadow CLV {'>'} Real CLV (filter broken)</span>
             ) : (
               <span style={{ color: "#f59e0b" }}>⚠️ Equal CLV (no edge)</span>
             )}
