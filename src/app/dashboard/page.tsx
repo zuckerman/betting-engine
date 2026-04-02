@@ -10,7 +10,7 @@ import StateBar from "@/components/StateBar";
 import SignalFeed from "@/components/SignalFeed";
 import LiveMetrics from "@/components/LiveMetrics";
 import Controls from "@/components/Controls";
-import { supabase } from "@/lib/supabase-client";
+import { getSupabase } from "@/lib/supabase-client";
 
 export default function Dashboard() {
   const [isPro, setIsPro] = useState(false);
@@ -20,6 +20,7 @@ export default function Dashboard() {
   useEffect(() => {
     const checkUser = async () => {
       try {
+        const supabase = getSupabase()
         const { data: { session } } = await supabase.auth.getSession()
         
         if (!session) {
@@ -47,6 +48,7 @@ export default function Dashboard() {
 
   const handleUpgrade = async () => {
     try {
+      const supabase = getSupabase()
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session?.user.email) {
@@ -97,7 +99,7 @@ export default function Dashboard() {
             </button>
           )}
           <button 
-            onClick={() => supabase.auth.signOut().then(() => router.push('/auth/login'))}
+            onClick={() => getSupabase().auth.signOut().then(() => router.push('/auth/login'))}
             className="text-sm text-gray-400 hover:text-white"
           >
             Logout

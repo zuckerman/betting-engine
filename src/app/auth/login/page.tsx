@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
+import { getSupabase } from '@/lib/supabase-client'
 import { GeistMono } from 'geist/font/mono'
 
 export default function LoginPage() {
@@ -16,6 +16,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const supabase = getSupabase()
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
