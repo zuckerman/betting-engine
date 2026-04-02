@@ -10,17 +10,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase credentials');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export async function POST(req: Request) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const body = await req.json();
     const { matchId, odds } = body;
 
@@ -67,6 +63,11 @@ export async function POST(req: Request) {
  */
 export async function GET(req: Request) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const { searchParams } = new URL(req.url);
     const matchId = searchParams.get('matchId');
 

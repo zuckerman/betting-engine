@@ -12,17 +12,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase credentials');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export async function POST() {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     // Get all settled predictions with CLV data
     const { data: predictions, error } = await supabase
       .from('predictions')
@@ -139,6 +135,11 @@ export async function POST() {
  */
 export async function GET() {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const { data: snapshots, error } = await supabase
       .from('daily_snapshots')
       .select('*')
