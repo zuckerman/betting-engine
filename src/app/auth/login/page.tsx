@@ -1,7 +1,5 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
 import { useState } from 'react'
 import { getSupabase } from '@/lib/supabase-client'
 import { GeistMono } from 'geist/font/mono'
