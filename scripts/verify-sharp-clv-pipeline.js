@@ -97,8 +97,8 @@ async function verifyPipeline() {
 
   log(colors.blue, '\n📋 Step 4: Extract Sharp Bookmakers');
 
-  const SHARP_BOOKS = ['pinnacle', 'matchbook', 'betfair_ex'];
-  const SOFT_BOOKS = ['bet365', 'skybet', 'ladbrokes', 'williamhill'];
+  const SHARP_BOOKS = ['betfair_ex_uk', 'smarkets', 'coral', 'betvictor'];
+  const SOFT_BOOKS = ['bet365', 'skybet', 'ladbrokes', 'williamhill', 'unibet_uk'];
 
   const firstMatch = oddsData[0];
   const homeTeam = firstMatch.home_team;

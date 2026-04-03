@@ -5,21 +5,34 @@
  * Filters out soft books (Bet365, SkyBet, etc.)
  * 
  * Philosophy: If you beat SHARP books, you have REAL edge
+ * 
+ * NOTE: Using available Odds API books.
+ * Sharp tier: Betfair Exchange, SMarkets (lowest margins)
+ * Mid tier: Virgin Bet, Coral, William Hill (for consensus)
+ * Soft tier: Sky Bet, Bet365, Ladbrokes, Unibet (excluded)
  */
 
 const SHARP_BOOKS = [
-  "pinnacle",      // gold standard
-  "matchbook",     // exchange-like, sharp
-  "betfair_ex",    // exchange (if available)
+  "betfair_ex_uk",   // Exchange - most efficient
+  "smarkets",        // Exchange - most efficient
+  "coral",           // Quality book
+  "betvictor",       // Quality book
 ];
 
 const SOFT_BOOKS = [
-  "bet365",
   "skybet",
-  "ladbrokes",
   "williamhill",
-  "betvictor",
-  "888sport",
+  "unibet_uk",
+  "ladbrokes_uk",
+  "paddypower",
+  "boyleports",
+  "betway",
+  "casumo",
+  "leovegas",
+  "livescorebet",
+  "virginbet",
+  "sport888",
+  "grosvenor",
 ];
 
 export interface SharpOddsSnapshot {
