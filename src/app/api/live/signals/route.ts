@@ -35,9 +35,9 @@ export async function GET() {
       model_odds: pred.model_probability ? 1 / pred.model_probability : 0,
       edge: pred.edge || 0,
       urgency:
-        pred.edge > 2
+        pred.edge > 0.05  // >5% = HIGH edge
           ? 'HIGH'
-          : pred.edge > 1
+          : pred.edge > 0.02  // >2% = MEDIUM edge
             ? 'MEDIUM'
             : 'LOW',
       decision: {
