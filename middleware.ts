@@ -1,20 +1,13 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// DISABLED: Auth middleware stripped for validation phase
+// Re-enable after edge validation complete
+
 export function middleware(request: NextRequest) {
-  const authToken = request.cookies.get('sb-access-token')?.value
-  const pathname = request.nextUrl.pathname
-
-  // Protect dashboard routes
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/signals') || pathname.startsWith('/performance') || pathname.startsWith('/monitor')) {
-    if (!authToken) {
-      return NextResponse.redirect(new URL('/auth/login', request.url))
-    }
-  }
-
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/signals/:path*', '/performance/:path*', '/monitor/:path*'],
+  matcher: [],
 }

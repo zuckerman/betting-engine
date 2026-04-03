@@ -15,34 +15,13 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // VALIDATION MODE: Auth disabled
+  // Dev user stubbed for local testing
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const supabase = getSupabase()
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        if (!session) {
-          router.push('/auth/login')
-          return
-        }
-
-        // Get user from database
-        const { data: user } = await supabase
-          .from('users')
-          .select('isPro')
-          .eq('email', session.user.email)
-          .single()
-
-        setIsPro(user?.isPro || false)
-      } catch (err) {
-        console.error('Error checking user:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    checkUser()
-  }, [router])
+    // Stub dev user - no auth needed during validation
+    setIsPro(true) // Enable all features for testing
+    setLoading(false)
+  }, [])
 
   const handleUpgrade = async () => {
     try {
