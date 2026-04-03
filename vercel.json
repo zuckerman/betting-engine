@@ -7,6 +7,10 @@
     {
       "path": "/api/train",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/settle-bets",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
