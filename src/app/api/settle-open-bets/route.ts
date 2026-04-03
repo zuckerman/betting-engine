@@ -91,19 +91,6 @@ export async function POST() {
       { status: 500 }
     )
   }
-
-    return NextResponse.json({
-      success: true,
-      settled: settled.length,
-      bets: settled,
-    })
-  } catch (err) {
-    console.error('Settlement error:', err)
-    return NextResponse.json(
-      { error: `Error: ${err instanceof Error ? err.message : String(err)}` },
-      { status: 500 }
-    )
-  }
 }
 
 export const dynamic = 'force-dynamic'
