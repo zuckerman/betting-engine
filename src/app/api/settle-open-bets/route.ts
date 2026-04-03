@@ -143,6 +143,11 @@ export async function POST() {
     const settled: any[] = []
     const skipped: any[] = []
 
+    // Track skip reasons for diagnostics
+    let skipTiming = 0
+    let skipNoOdds = 0
+    let skipNoMatch = 0
+
     for (const pred of predictions) {
       const entryOdds = pred.odds_taken
 
@@ -151,6 +156,7 @@ export async function POST() {
       const settleAfterTime = new Date(kickoffTime.getTime() + 15 * 60 * 1000)
 
       if (now < settleAfterTime) {
+        skipTiming++
         skipped.push({
           match: `${pred.home_team} vs ${pred.away_team}`,
           reason: 'Market stabilization (15 mins after kickoff)',
@@ -168,6 +174,7 @@ export async function POST() {
       const closingOdds = extractClosing(bookmakers)
 
       if (!closingOdds) {
+        skipNoOdds++
         skipped.push({
           match: `${pred.home_team} vs ${pred.away_team}`,
           reason: 'No closing odds available',
@@ -198,12 +205,35 @@ export async function POST() {
       }
     }
 
+    // Diagnostics
+    const total = predictions.length
+    const settledCount = settled.length
+    const matchRate = total > 0 ? (settledCount / total) * 100 : 0
+
+    console.log('[Settlement] Batch complete:', {
+      total,
+      settled: settledCount,
+      skipped: skipped.length,
+      skipTiming,
+      skipNoOdds,
+      skipNoMatch,
+      matchRate: `${matchRate.toFixed(1)}%`,
+    })
+
     return NextResponse.json({
       success: true,
       settled: settled.length,
       skipped: skipped.length,
       bets: settled,
       skippedReasons: skipped,
+      diagnostics: {
+        total,
+        settled: settledCount,
+        skipTiming,
+        skipNoOdds,
+        skipNoMatch,
+        matchRate: parseFloat(matchRate.toFixed(2)),
+      },
     })
   } catch (err) {
     console.error('Settlement error:', err)
