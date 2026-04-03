@@ -2,13 +2,16 @@
  * /api/settle-bets
  * 
  * Auto-settle predictions that have passed their kickoff time
- * Updates: result, closing_odds, clv, settled_at
+ * Updates: closing_odds, clv, settled flag
  * 
  * Runs every 30 minutes via Vercel cron
+ * Uses real CLV engine for validation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
+import { calculateCLV, validateOdds } from '@/lib/clv-engine';
+import { getClosingOddsSafe } from '@/lib/betfair-odds-service';
 
 export async function GET(request: NextRequest) {
   // Verify cron secret (optional for testing locally)
@@ -46,48 +49,66 @@ export async function GET(request: NextRequest) {
 
     // Settle each prediction
     const updates = unsettledBets.map((bet) => {
-      // Mock closing odds (±5-15% variance from opening)
-      // TODO: Replace with real odds API (Betfair, Odds API, etc)
-      const variance = 0.85 + Math.random() * 0.3;
-      const closingOdds = (bet.odds_taken || 1.5) * variance;
+      // Get closing odds (real Betfair or mock if not configured)
+      // This is async but we'll handle it in the loop
+      const entry = bet.odds_taken || 1.5;
 
-      // 🔥 REAL CLV CALCULATION
-      // CLV = (closing_implied - opening_implied)
-      // Positive CLV = market converged to better odds than you took (you were right)
-      // Negative CLV = market diverged to worse odds than you took (you were lucky or wrong)
-      const closingImplied = 1 / closingOdds;
-      const openingImplied = 1 / (bet.odds_taken || 1.5);
-      const clv = closingImplied - openingImplied;
-
+      // Calculate CLV using real formula
+      // CLV = (entry / closing) - 1
+      // +5% = you got better value than market closed at
+      // -5% = you got worse value than market closed at
+      
       return {
         id: bet.id,
-        closing_odds: parseFloat(closingOdds.toFixed(2)),
-        clv: parseFloat(clv.toFixed(4)),
-        settled: true,
-        settled_at: now,
+        entry_odds: entry,
+        fixture_id: bet.fixture_id,
+        selection_id: bet.match_id, // Note: field name mapping
       };
     });
 
-    // Batch update
+    // Batch update with real odds
     let settledCount = 0;
     let errorCount = 0;
 
     for (const update of updates) {
-      const { error: updateError } = await supabase
-        .from('predictions')
-        .update({
-          closing_odds: update.closing_odds,
-          clv: update.clv,
-          settled: update.settled,
-          settled_at: update.settled_at,
-        })
-        .eq('id', update.id);
+      try {
+        // Get closing odds from Betfair or mock
+        const closingOdds = await getClosingOddsSafe(
+          update.fixture_id || 'mock',
+          update.selection_id || 0,
+          update.entry_odds
+        );
 
-      if (!updateError) {
-        settledCount++;
-      } else {
+        // Validate
+        if (!validateOdds(closingOdds)) {
+          console.warn(`Invalid closing odds for ${update.id}: ${closingOdds}`);
+          errorCount++;
+          continue;
+        }
+
+        // Calculate real CLV
+        const clv = calculateCLV(update.entry_odds, closingOdds);
+
+        // Update prediction
+        const { error: updateError } = await supabase
+          .from('predictions')
+          .update({
+            closing_odds: parseFloat(closingOdds.toFixed(2)),
+            clv: parseFloat(clv.toFixed(4)),
+            settled: true,
+            settled_at: now,
+          })
+          .eq('id', update.id);
+
+        if (!updateError) {
+          settledCount++;
+        } else {
+          errorCount++;
+          console.error(`Error settling prediction ${update.id}:`, updateError);
+        }
+      } catch (err) {
         errorCount++;
-        console.error(`Error settling prediction ${update.id}:`, updateError);
+        console.error(`Error in settlement loop for ${update.id}:`, err);
       }
     }
 
