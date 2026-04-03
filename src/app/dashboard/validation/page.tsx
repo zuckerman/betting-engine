@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 interface ValidationData {
   total: number
@@ -19,7 +18,6 @@ interface ValidationData {
 }
 
 export default function ValidationPage() {
-  const router = useRouter()
   const [data, setData] = useState<ValidationData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -48,23 +46,6 @@ export default function ValidationPage() {
 
     fetchData()
   }, [])
-
-  if (unauthorized) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Unauthorized</h1>
-          <p className="text-gray-600 mb-6">This dashboard is private. Contact admin.</p>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-blue-600 hover:underline"
-          >
-            Back to dashboard
-          </button>
-        </div>
-      </div>
-    )
-  }
 
   if (loading) {
     return (
