@@ -22,17 +22,22 @@ export default function ValidationPage() {
   const router = useRouter()
   const [data, setData] = useState<ValidationData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [unauthorized, setUnauthorized] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/validation')
-        if (res.status === 403) {
-          setUnauthorized(true)
+        const res = await fetch('/api/predictions/stats')
+        if (!res.ok) {
+          console.error('Error:', res.status, res.statusText)
+          setLoading(false)
           return
         }
         const json = await res.json()
+        if (json.error) {
+          console.error('API error:', json.error)
+          setLoading(false)
+          return
+        }
         setData(json)
       } catch (err) {
         console.error('Failed to fetch validation data:', err)
