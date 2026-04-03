@@ -9,18 +9,22 @@ import SignalFeed from "@/components/SignalFeed";
 import LiveMetrics from "@/components/LiveMetrics";
 import Controls from "@/components/Controls";
 import { getSupabase } from "@/lib/supabase-client";
+import { startScheduler } from "@/lib/scheduler";
 
 export default function Dashboard() {
   const [isPro, setIsPro] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // VALIDATION MODE: Auth disabled
+  // VALIDATION MODE: Auth disabled + Start signal scheduler
   // Dev user stubbed for local testing
   useEffect(() => {
     // Stub dev user - no auth needed during validation
     setIsPro(true) // Enable all features for testing
     setLoading(false)
+    
+    // Start automatic signal generation
+    startScheduler()
   }, [])
 
   const handleUpgrade = async () => {
