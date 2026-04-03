@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase
       .from('predictions')
       .insert({
-        event: event.trim(),
+        league: 'test',
         market: market.trim(),
         model_probability: modelProbability,
         odds_taken: oddsTaken,
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error('Database error:', error);
       return NextResponse.json(
-        { error: 'Failed to store prediction' },
+        { error: `DB Error: ${error.message}` },
         { status: 500 }
       );
     }
