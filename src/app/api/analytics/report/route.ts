@@ -12,12 +12,13 @@ const supabase = createClient(
  */
 export async function GET() {
   try {
-    const { data: settledBets } = await supabase
-      .from('bets')
+    // Get all settled predictions
+    const { data: settledPreds } = await supabase
+      .from('predictions')
       .select('*')
-      .eq('status', 'SETTLED')
+      .eq('settled', true)
 
-    if (!settledBets || settledBets.length === 0) {
+    if (!settledPreds || settledPreds.length === 0) {
       return NextResponse.json({
         status: '⚫',
         state: 'VALIDATION MODE - No settled bets yet',
@@ -33,15 +34,10 @@ export async function GET() {
       })
     }
 
-    const clvValues = settledBets.map((b: any) => b.clv || 0)
+    const clvValues = settledPreds.map((p: any) => p.clv || 0)
     const positiveCount = clvValues.filter((c) => c > 0).length
-    const totalStake = settledBets.reduce((sum: number, b: any) => sum + (b.stake || 0), 0)
-    const totalReturn = settledBets.reduce(
-      (sum: number, b: any) => sum + (b.stake || 0) * (1 + (b.clv || 0) / 100),
-      0
-    )
     const avgClv = clvValues.reduce((a: number, b: number) => a + b, 0) / clvValues.length
-    const winRate = positiveCount / settledBets.length
+    const winRate = positiveCount / settledPreds.length
 
     // Determine status based on metrics
     let status = '🟡'
@@ -50,15 +46,15 @@ export async function GET() {
 
     return NextResponse.json({
       status,
-      state: `VALIDATION: ${settledBets.length} bets`,
-      bankroll: totalReturn,
-      roi: parseFloat(((totalReturn / totalStake - 1) * 100).toFixed(2)),
+      state: `VALIDATION: ${settledPreds.length} bets`,
+      bankroll: 1000 + settledPreds.length * 10 * (avgClv / 100),
+      roi: parseFloat((avgClv).toFixed(2)),
       roi7d: avgClv,
       avgEdge: avgClv,
       drawdown: 0.0,
       recentWinRate: parseFloat((winRate * 100).toFixed(1)),
       calibrationError: 0.0,
-      totalBetsPlaced: settledBets.length,
+      totalBetsPlaced: settledPreds.length,
       timestamp: Date.now(),
     })
   } catch (err) {

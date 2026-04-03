@@ -69,18 +69,7 @@ export async function POST() {
 
       if (data) {
         const predictionId = data[0]?.id
-        
-        // AUTO-EXECUTION: Log bet when signal created with positive edge
-        if (predictionId && edge > 0) {
-          await supabase.from('bets').insert({
-            prediction_id: predictionId,
-            stake: 10,
-            odds: oddsTaken,
-            status: 'OPEN',
-            placed_at: new Date().toISOString(),
-          })
-        }
-        
+
         signals.push({
           match: `${match.home} vs ${match.away}`,
           edge: parseFloat(edge.toFixed(3)),
