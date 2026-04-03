@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getStake } from '@/lib/staking';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -138,7 +139,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 📊 Calculate implied probability from odds
+    // � Calculate smart stake using fractional Kelly
+    const stake = getStake(modelProbability, oddsTaken);
+
+    // �📊 Calculate implied probability from odds
     const impliedProbability = 1 / oddsTaken;
 
     // 📊 INSERT INTO DATABASE
@@ -153,6 +157,7 @@ export async function POST(req: NextRequest) {
         odds_taken: oddsTaken,
         implied_probability: impliedProbability,
         edge: parseFloat(edgeValue.toFixed(4)),
+        stake,
         placed_at: placedDate.toISOString(),
         kickoff_at: kickoffDate.toISOString(),
         event_start: kickoffDate.toISOString(),
@@ -160,7 +165,12 @@ export async function POST(req: NextRequest) {
         closing_odds: null,
         settled_at: null,
         clv: null,
-        settled: false
+        settled: false,
+        // Version tagging (v1 baseline)
+        model_version: 'poisson_v1',
+        odds_version: 'sharp_avg_v1',
+        staking_version: 'kelly_0.25_v1',
+        system_version: 'v1',
       })
       .select();
 
@@ -181,6 +191,7 @@ export async function POST(req: NextRequest) {
         edge: parseFloat(edgeValue.toFixed(4)),
         modelProbability,
         impliedProbability: parseFloat(impliedProbability.toFixed(4)),
+        stake,
         kickoff
       }
     });

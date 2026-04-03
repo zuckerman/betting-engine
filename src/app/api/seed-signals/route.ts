@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getStake } from '@/lib/staking'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -23,7 +24,7 @@ const SAMPLE_MATCHES = [
  */
 export async function POST() {
   try {
-    const signals = []
+    const signals: any[] = []
 
     // Generate 5 random signals
     for (let i = 0; i < 5; i++) {
@@ -44,8 +45,11 @@ export async function POST() {
       kickoffDate.setDate(kickoffDate.getDate() + Math.floor(Math.random() * 7))
       kickoffDate.setHours(15 + Math.floor(Math.random() * 8), 0, 0, 0)
 
+      // Calculate smart stake using fractional Kelly
+      const stake = getStake(modelProbability, oddsTaken)
+
       // Insert directly to database
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('predictions')
         .insert({
           match_id: `${match.fixture_id}-${Date.now()}-${i}`,
@@ -56,6 +60,7 @@ export async function POST() {
           odds_taken: oddsTaken,
           implied_probability: 1 / oddsTaken,
           edge: parseFloat(edge.toFixed(4)),
+          stake,
           placed_at: new Date().toISOString(),
           kickoff_at: kickoffDate.toISOString(),
           event_start: kickoffDate.toISOString(),
@@ -64,6 +69,11 @@ export async function POST() {
           settled_at: null,
           clv: null,
           settled: false,
+          // Version tagging (v1 baseline)
+          model_version: 'poisson_v1',
+          odds_version: 'sharp_avg_v1',
+          staking_version: 'kelly_0.25_v1',
+          system_version: 'v1',
         })
         .select()
 
@@ -73,6 +83,7 @@ export async function POST() {
         signals.push({
           match: `${match.home} vs ${match.away}`,
           edge: parseFloat(edge.toFixed(3)),
+          stake,
           id: predictionId,
         })
       }

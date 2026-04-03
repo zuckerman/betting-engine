@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getStake } from '@/lib/staking'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -42,6 +43,9 @@ export async function POST() {
     const kickoffDate = new Date()
     kickoffDate.setHours(kickoffDate.getHours() - 2)
 
+    // Calculate smart stake using fractional Kelly
+    const stake = getStake(modelProbability, oddsTaken)
+
     // Insert into database
     const { data, error } = await supabase
       .from('predictions')
@@ -53,12 +57,18 @@ export async function POST() {
         model_probability: modelProbability,
         odds_taken: oddsTaken,
         edge,
+        stake,
         placed_at: new Date().toISOString(),
         kickoff_at: kickoffDate.toISOString(),
         settled: false,
         closing_odds: null,
         clv: null,
         settled_at: null,
+        // Version tagging (v1 baseline)
+        model_version: 'poisson_v1',
+        odds_version: 'sharp_avg_v1',
+        staking_version: 'kelly_0.25_v1',
+        system_version: 'v1',
       })
       .select('id')
 
