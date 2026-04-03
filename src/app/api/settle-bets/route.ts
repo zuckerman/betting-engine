@@ -11,7 +11,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { calculateCLV, validateOdds } from '@/lib/clv-engine';
-import { getClosingOddsSafe } from '@/lib/betfair-odds-service';
+import { 
+  extractSharpPrices, 
+  calculateSharpConsensus, 
+  calculateSharpSpread,
+  calculateSharpCLV 
+} from '@/lib/sharp-clv-engine';
+import { getLiveOdds } from '@/lib/odds-api';
+
+// Simple in-memory cache (60 second TTL)
+const oddsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 60 * 1000; // 60 seconds
 
 export async function GET(request: NextRequest) {
   // Verify cron secret (optional for testing locally)
@@ -66,42 +76,81 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Batch update with real odds
+    // Batch update with sharp CLV from Odds API
     let settledCount = 0;
     let errorCount = 0;
 
     for (const update of updates) {
       try {
-        // Get closing odds from Betfair or mock
-        const closingOdds = await getClosingOddsSafe(
-          update.fixture_id || 'mock',
-          update.selection_id || 0,
-          update.entry_odds
-        );
+        // Get sharp consensus from Odds API (with caching)
+        let oddsData = null;
+        const cacheKey = `odds-${update.fixture_id}`;
+        const cached = oddsCache.get(cacheKey);
+        
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          oddsData = cached.data;
+          console.log(`[CACHE HIT] ${cacheKey}`);
+        } else {
+          // Fetch from API
+          oddsData = await getLiveOdds();
+          oddsCache.set(cacheKey, { data: oddsData, timestamp: Date.now() });
+          console.log(`[API FETCH] Got odds`);
+        }
 
-        // Validate
-        if (!validateOdds(closingOdds)) {
-          console.warn(`Invalid closing odds for ${update.id}: ${closingOdds}`);
+        if (!oddsData || oddsData.length === 0) {
+          console.warn(`No odds data for ${update.id}, skipping`);
           errorCount++;
           continue;
         }
 
-        // Calculate real CLV
-        const clv = calculateCLV(update.entry_odds, closingOdds);
+        // Extract sharp prices for this team
+        const sharpPrices = extractSharpPrices(oddsData[0], update.home_team);
+        
+        if (sharpPrices.length === 0) {
+          console.warn(`No sharp prices for ${update.home_team}, skipping`);
+          errorCount++;
+          continue;
+        }
 
-        // Update prediction
+        // Calculate spread to validate market quality (<8%)
+        const spread = calculateSharpSpread(sharpPrices.map(p => p.price));
+        if (spread > 0.08) {
+          console.warn(`Spread too wide (${(spread * 100).toFixed(1)}%) for ${update.id}, skipping`);
+          errorCount++;
+          continue;
+        }
+
+        // Calculate sharp CLV
+        const clvResult = calculateSharpCLV({
+          entryOdds: update.entry_odds,
+          sharpPrices: sharpPrices.map(p => p.price),
+        });
+
+        if (!clvResult || !clvResult.isValid) {
+          console.warn(`Invalid CLV for ${update.id}`);;
+          errorCount++;
+          continue;
+        }
+
+        // Update prediction with sharp CLV
         const { error: updateError } = await supabase
           .from('predictions')
           .update({
-            closing_odds: parseFloat(closingOdds.toFixed(2)),
-            clv: parseFloat(clv.toFixed(4)),
+            closing_odds: parseFloat(clvResult.consensus.toFixed(2)),
+            clv: parseFloat((clvResult.clv * 100).toFixed(2)),
             settled: true,
             settled_at: now,
+            metadata: {
+              sharp_consensus: clvResult.consensus,
+              spread: (spread * 100).toFixed(2),
+              book_count: sharpPrices.length,
+            }
           })
           .eq('id', update.id);
 
         if (!updateError) {
           settledCount++;
+          console.log(`[SETTLED] ${update.id}: CLV ${clvResult.clv > 0 ? '+' : ''}${(clvResult.clv * 100).toFixed(2)}%`);
         } else {
           errorCount++;
           console.error(`Error settling prediction ${update.id}:`, updateError);
