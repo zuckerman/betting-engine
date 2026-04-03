@@ -67,7 +67,7 @@ export default function UpgradePage() {
 
         {/* What you get */}
         <div className="mb-12 p-6 bg-gray-50 rounded-xl">
-          <h3 className="font-semibold mb-4">What's included:</h3>
+          <h3 className="font-semibold mb-4">What&apos;s included:</h3>
           <ul className="space-y-2 text-sm">
             <li>✓ Unlimited live signals</li>
             <li>✓ Closing line value (CLV) tracking</li>

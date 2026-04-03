@@ -8,7 +8,7 @@ export function UpgradeWall() {
       <div className="bg-white p-8 rounded-2xl max-w-sm mx-4 shadow-xl">
         <h2 className="text-2xl font-bold mb-2">🔒 Unlock Full Access</h2>
         <p className="text-gray-600 mb-6">
-          You've reached your free limit. Upgrade to Pro to see all signals.
+          You&apos;ve reached your free limit. Upgrade to Pro to see all signals.
         </p>
 
         {/* Proof */}
