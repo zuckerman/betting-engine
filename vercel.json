@@ -3,6 +3,10 @@
     {
       "path": "/api/generate",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/train",
+      "schedule": "0 2 * * *"
     }
   ]
 }
