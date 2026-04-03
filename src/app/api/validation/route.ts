@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
   ]
 
   // Calculate overall stats
+  // CLV = (1/closing_odds) - (1/opening_odds) - did you beat the market closing line?
   let totalCLV = 0
   let positiveCLV = 0
   let totalProfit = 0
@@ -56,7 +57,9 @@ export async function GET(request: NextRequest) {
   const byMarket: Record<string, any[]> = {}
 
   demoData.forEach((bet) => {
-    const clv = bet.closing_odds - bet.odds
+    const closingImplied = 1 / bet.closing_odds
+    const openingImplied = 1 / bet.odds
+    const clv = closingImplied - openingImplied
     totalCLV += clv
     if (clv > 0) positiveCLV++
 
@@ -79,7 +82,9 @@ export async function GET(request: NextRequest) {
     let profit = 0
 
     bets.forEach((b) => {
-      const c = b.closing_odds - b.odds
+      const closingImplied = 1 / b.closing_odds
+      const openingImplied = 1 / b.odds
+      const c = closingImplied - openingImplied
       clv += c
       if (c > 0) positive++
       profit += b.result === 'win' ? b.odds - 1 : -1
