@@ -13,7 +13,7 @@ export function UpgradeWall() {
 
         {/* Proof */}
         <div className="bg-gray-50 p-4 rounded-lg mb-6 text-center">
-          <p className="text-sm text-gray-500">Today's signals edge</p>
+          <p className="text-sm text-gray-500">Today&apos;s signals edge</p>
           <p className="text-2xl font-bold">+6.2%</p>
           <p className="text-xs text-gray-500">Average</p>
         </div>

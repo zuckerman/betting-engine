@@ -101,7 +101,7 @@ export default function UpgradePage() {
         <div className="p-6 bg-gray-50 rounded-xl">
           <h3 className="font-semibold mb-2">Why CLV matters</h3>
           <p className="text-sm text-gray-600">
-            Closing Line Value measures whether you consistently beat the market. Positive CLV means you're getting better odds than the bookmakers' final assessment — the core metric professional bettors use to prove edge.
+            Closing Line Value measures whether you consistently beat the market. Positive CLV means you&apos;re getting better odds than the bookmakers&apos; final assessment &mdash; the core metric professional bettors use to prove edge.
           </p>
         </div>
       </div>
