@@ -6,8 +6,6 @@
  *   npx ts-node scripts/send-predictions.ts
  */
 
-import fetch from 'node-fetch';
-
 // ============================================================================
 // STEP 1: MODEL OUTPUT FORMAT (your model returns this)
 // ============================================================================
