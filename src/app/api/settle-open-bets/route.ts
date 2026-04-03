@@ -9,11 +9,54 @@ const supabase = createClient(
 const ODDS_API_KEY = process.env.ODDS_API_KEY || ''
 const SHARP_BOOKS = ['pinnacle', 'matchbook', 'betfair_ex']
 
-/**
- * Fetch real closing odds from Odds API
- */
-async function fetchClosingOdds(home: string, away: string) {
+// Global cache for odds (in-memory, per-minute)
+const oddsCache = new Map<string, { data: any; timestamp: number }>()
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function isSameMatch(
+  apiMatch: any,
+  home: string,
+  away: string,
+  kickoff: string
+): boolean {
+  const apiKickoff = new Date(apiMatch.commence_time).getTime()
+  const predictedKickoff = new Date(kickoff).getTime()
+  const timeDiff = Math.abs(apiKickoff - predictedKickoff)
+
+  if (timeDiff > 60 * 60 * 1000) return false
+
+  const homeMatch =
+    normalizeName(apiMatch.home_team).includes(normalizeName(home)) ||
+    normalizeName(home).includes(normalizeName(apiMatch.home_team))
+
+  const awayMatch =
+    normalizeName(apiMatch.away_team).includes(normalizeName(away)) ||
+    normalizeName(away).includes(normalizeName(apiMatch.away_team))
+
+  return homeMatch && awayMatch
+}
+
+async function fetchClosingOdds(
+  home: string,
+  away: string,
+  kickoff: string
+): Promise<any[] | null> {
   try {
+    const cacheKey = 'epl_odds'
+    const now = Date.now()
+
+    if (oddsCache.has(cacheKey)) {
+      const cached = oddsCache.get(cacheKey)!
+      if (now - cached.timestamp < 60 * 1000) {
+        console.log('[Settlement] Using cached odds')
+        const match = cached.data.find((m: any) => isSameMatch(m, home, away, kickoff))
+        return match?.bookmakers || null
+      }
+    }
+
     const res = await fetch(
       `https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?apiKey=${ODDS_API_KEY}&regions=uk&markets=h2h`,
       { headers: { 'User-Agent': 'Rivva/1.0' } }
@@ -25,14 +68,9 @@ async function fetchClosingOdds(home: string, away: string) {
     }
 
     const data = await res.json()
+    oddsCache.set(cacheKey, { data, timestamp: now })
 
-    // Find matching fixture
-    const match = data.find(
-      (m: any) =>
-        m.home_team?.toLowerCase() === home.toLowerCase() &&
-        m.away_team?.toLowerCase() === away.toLowerCase()
-    )
-
+    const match = data.find((m: any) => isSameMatch(m, home, away, kickoff))
     return match?.bookmakers || null
   } catch (err) {
     console.error('Fetch closing odds error:', err)
@@ -40,50 +78,46 @@ async function fetchClosingOdds(home: string, away: string) {
   }
 }
 
-/**
- * Extract sharp closing price (average of Pinnacle, Matchbook, Betfair)
- */
-function extractSharpClosing(bookmakers: any[] | null) {
+function extractClosing(bookmakers: any[] | null): number | null {
   if (!bookmakers || bookmakers.length === 0) return null
 
-  const prices: number[] = []
+  let prices: number[] = []
 
+  // Tier 1: Sharp books only
   for (const book of bookmakers) {
     if (!SHARP_BOOKS.includes(book.key)) continue
 
     const market = book.markets?.[0]
     if (!market?.outcomes) continue
 
-    // Get home team odds (first outcome)
     const homeOdds = market.outcomes[0]?.price
     if (homeOdds && homeOdds > 1.01 && homeOdds < 100) {
       prices.push(homeOdds)
     }
   }
 
+  // Tier 2: Fallback to any book if no sharp prices
+  if (!prices.length) {
+    for (const book of bookmakers) {
+      const market = book.markets?.[0]
+      if (!market?.outcomes) continue
+
+      const homeOdds = market.outcomes[0]?.price
+      if (homeOdds && homeOdds > 1.01 && homeOdds < 100) {
+        prices.push(homeOdds)
+      }
+    }
+  }
+
   if (!prices.length) return null
 
-  // Return average of available sharp prices
   return parseFloat(
     (prices.reduce((a, b) => a + b, 0) / prices.length).toFixed(3)
   )
 }
 
-/**
- * /api/settle-open-bets
- *
- * Settlement process:
- * 1. Find UNSETTLED predictions (settled = false)
- * 2. For each prediction:
- *    - Check if kickoff time has passed
- *    - Fetch real closing odds from Odds API
- *    - Calculate CLV = (entry_odds / closing_odds) - 1
- *    - Mark as SETTLED
- * 3. Return settlement summary
- */
 export async function POST() {
   try {
-    // Get all unsettled predictions
     const { data: predictions, error: fetchErr } = await supabase
       .from('predictions')
       .select('*')
@@ -106,33 +140,33 @@ export async function POST() {
     }
 
     const now = new Date()
-    const settled = []
-    const skipped = []
+    const settled: any[] = []
+    const skipped: any[] = []
 
-    // Settle each prediction
     for (const pred of predictions) {
       const entryOdds = pred.odds_taken
 
-      // Check if kickoff has passed
+      // Wait for kickoff + 15 mins (markets frozen)
       const kickoffTime = new Date(pred.kickoff_at)
-      if (now < kickoffTime) {
+      const settleAfterTime = new Date(kickoffTime.getTime() + 15 * 60 * 1000)
+
+      if (now < settleAfterTime) {
         skipped.push({
           match: `${pred.home_team} vs ${pred.away_team}`,
-          reason: 'Not kickoff yet',
+          reason: 'Market stabilization (15 mins after kickoff)',
         })
         continue
       }
 
-      // Fetch real closing odds from Odds API
+      // Fetch real closing odds with fuzzy matching
       const bookmakers = await fetchClosingOdds(
         pred.home_team,
-        pred.away_team
+        pred.away_team,
+        pred.kickoff_at
       )
 
-      // Extract sharp closing price
-      const closingOdds = extractSharpClosing(bookmakers)
+      const closingOdds = extractClosing(bookmakers)
 
-      // Skip if no valid closing odds
       if (!closingOdds) {
         skipped.push({
           match: `${pred.home_team} vs ${pred.away_team}`,
@@ -141,11 +175,8 @@ export async function POST() {
         continue
       }
 
-      // Calculate REAL CLV using sharp closing price
-      // CLV = (entry_odds / closing_odds) - 1
       const clv = (entryOdds / closingOdds) - 1
 
-      // Update prediction record
       const { error: updateErr } = await supabase
         .from('predictions')
         .update({
@@ -160,7 +191,7 @@ export async function POST() {
         settled.push({
           match: `${pred.home_team} vs ${pred.away_team}`,
           entryOdds: parseFloat(entryOdds.toFixed(3)),
-          closingOdds: closingOdds,
+          closingOdds,
           clv: parseFloat((clv * 100).toFixed(2)),
           edge: parseFloat((pred.edge * 100).toFixed(2)),
         })
