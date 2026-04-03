@@ -33,10 +33,11 @@ export async function POST() {
       const modelProbability = 0.48 + Math.random() * 0.04
       const oddsTaken = 1.9 + Math.random() * 0.4
 
-      const edge = modelProbability * oddsTaken
+      // Calculate edge correctly: (prob × odds) - 1
+      const edge = (modelProbability * oddsTaken) - 1
 
-      // Skip if no edge
-      if (edge <= 1) continue
+      // Skip if no positive edge
+      if (edge <= 0) continue
 
       // Random kickoff within next 7 days
       const kickoffDate = new Date()

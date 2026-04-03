@@ -127,14 +127,14 @@ export async function POST(req: NextRequest) {
     }
 
     // 🎯 EDGE GATE (NON-NEGOTIABLE)
-    // Only accept bets where model probability * odds > 1
-    const edgeValue = modelProbability * oddsTaken;
+    // Only accept bets where (probability × odds) - 1 > 0 (positive EV)
+    const edgeValue = (modelProbability * oddsTaken) - 1;
 
-    if (edgeValue <= 1) {
+    if (edgeValue <= 0) {
       return NextResponse.json({
         skipped: true,
         reason: 'No positive edge',
-        edge: parseFloat(edgeValue.toFixed(4))
+        edge: parseFloat((edgeValue * 100).toFixed(2)) // Show as percentage
       });
     }
 

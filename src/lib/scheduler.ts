@@ -25,9 +25,10 @@ async function generateSignal() {
     const modelProbability = 0.48 + Math.random() * 0.04 // 48-52%
     const oddsTaken = 1.9 + Math.random() * 0.4 // 1.9-2.3
     
-    // Only send if edge > 1
-    const edge = modelProbability * oddsTaken
-    if (edge <= 1) {
+    // Calculate edge correctly: (prob × odds) - 1
+    const edge = (modelProbability * oddsTaken) - 1
+    // Only send if edge > 0 (positive expected value)
+    if (edge <= 0) {
       console.log(`[Scheduler] Skipped ${match.home} vs ${match.away} (no edge)`)
       return
     }
