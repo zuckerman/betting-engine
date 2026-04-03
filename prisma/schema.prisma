@@ -196,20 +196,59 @@ model OddsSnapshot {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
+  id                    String   @id @default(uuid())
+  email                 String   @unique
+
+  // Tier System
+  tier                  String   @default("free") // "free" | "pro"
+  trialEndsAt           DateTime?
+  signalsUsedToday      Int      @default(0)
 
   // Billing
-  isPro       Boolean  @default(false)
-  stripeId    String?  @unique
+  isPro                 Boolean  @default(false)
+  stripeId              String?  @unique
+  stripeCustomerId      String?  @unique
 
   // Onboarding
-  onboarded   Boolean  @default(false)
+  onboarded             Boolean  @default(false)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Relations
+  userPredictions       UserPrediction[]
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@index([email])
+  @@index([tier])
+}
+
+model UserPrediction {
+  id                    String   @id @default(uuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Match details
+  matchId               String
+  market                String   // "moneyline", "spread", "over_under"
+  prediction            String   // the actual signal text
+  league                String   // "NBA", "NFL", etc
+
+  // Odds & Result
+  odds                  Float
+  closingOdds           Float?
+  result                String?  // "win" | "loss" | "push" | "pending"
+  stake                 Float
+
+  // Performance metrics
+  clv                   Float?   // Closing Line Value = closingOdds - odds
+  roi                   Float?   // Return on Investment %
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([userId])
+  @@index([matchId])
+  @@index([result])
 }
 
 model ShadowBet {
