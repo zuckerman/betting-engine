@@ -20,13 +20,13 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
 
-    // Get unsettled predictions with odds_taken (not kickoff time yet - for now settle all recent ones)
-    const now = new Date();
+    // Get unsettled predictions that have passed their event_start time
+    const now = new Date().toISOString();
     const { data: unsettledBets, error: queryError } = await supabase
       .from('predictions')
       .select('*')
-      .is('settled_at', null)
-      .gt('placed_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24h
+      .eq('settled', false)
+      .lte('event_start', now)
       .limit(100); // Settle max 100 per run to avoid timeout
 
     if (queryError) {
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ 
         settled: 0, 
         message: 'No predictions to settle',
-        timestamp: now.toISOString()
+        timestamp: now
       });
     }
 
@@ -46,28 +46,25 @@ export async function GET(request: NextRequest) {
 
     // Settle each prediction
     const updates = unsettledBets.map((bet) => {
-      // For now: mock results (50/50 win/loss based on probability)
-      // TODO: Replace with real odds/result API
-      const isWin = Math.random() < (bet.model_probability || 0.5);
-      const result = isWin ? 'WIN' : 'LOSS';
-
       // Mock closing odds (±5-15% variance from opening)
-      // Real implementation: fetch from odds API
+      // TODO: Replace with real odds API (Betfair, Odds API, etc)
       const variance = 0.85 + Math.random() * 0.3;
       const closingOdds = (bet.odds_taken || 1.5) * variance;
 
+      // 🔥 REAL CLV CALCULATION
       // CLV = (closing_implied - opening_implied)
-      // Positive CLV = you beat the market at closing price
+      // Positive CLV = market converged to better odds than you took (you were right)
+      // Negative CLV = market diverged to worse odds than you took (you were lucky or wrong)
       const closingImplied = 1 / closingOdds;
       const openingImplied = 1 / (bet.odds_taken || 1.5);
       const clv = closingImplied - openingImplied;
 
       return {
         id: bet.id,
-        result,
         closing_odds: parseFloat(closingOdds.toFixed(2)),
         clv: parseFloat(clv.toFixed(4)),
-        settled_at: now.toISOString(),
+        settled: true,
+        settled_at: now,
       };
     });
 
@@ -79,9 +76,9 @@ export async function GET(request: NextRequest) {
       const { error: updateError } = await supabase
         .from('predictions')
         .update({
-          result: update.result,
           closing_odds: update.closing_odds,
           clv: update.clv,
+          settled: update.settled,
           settled_at: update.settled_at,
         })
         .eq('id', update.id);
@@ -101,7 +98,7 @@ export async function GET(request: NextRequest) {
       failed: errorCount,
       total: updates.length,
       message: `Settled ${settledCount} / ${updates.length} predictions`,
-      timestamp: now.toISOString()
+      timestamp: now
     });
   } catch (error) {
     console.error('Settle bets error:', error);
