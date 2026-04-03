@@ -30,7 +30,7 @@ def validate_prediction(pred: Dict[str, Any]) -> Tuple[bool, str]:
     if pred.get('oddsTaken', 0) <= 1:
         return False, 'Odds must be > 1.0'
     
-    required = ['event', 'market', 'timestamp']
+    required = ['fixture_id', 'home', 'away', 'market', 'timestamp', 'kickoff']
     missing = [f for f in required if not pred.get(f)]
     if missing:
         return False, f'Missing: {", ".join(missing)}'
@@ -54,11 +54,14 @@ def map_market(market: str) -> str:
 def adapt_prediction(model: Dict[str, Any]) -> Dict[str, Any]:
     """Transform model output to API format"""
     return {
-        'event': f"{model['home']} vs {model['away']}",
+        'fixture_id': model['fixture_id'],
+        'home': model['home'],
+        'away': model['away'],
         'market': map_market(model['market']),
         'modelProbability': model['prob_over'],
         'oddsTaken': model['best_odds'],
         'timestamp': model['timestamp'],
+        'kickoff': model['kickoff'],
     }
 
 
@@ -118,7 +121,7 @@ def run_pipeline(predictions: List[Dict[str, Any]], api_url: str) -> None:
             # Log result
             if response.get('success'):
                 edge = response.get('prediction', {}).get('edge', 'N/A')
-                print(f'✅ SENT: {fixture_id} | event="{adapted["event"]}" | edge={edge}')
+                print(f'✅ SENT: {pred["fixture_id"]} | event="{adapted["home"]} vs {adapted["away"]}" | edge={edge}')
                 sent += 1
             
             elif response.get('skipped'):
@@ -180,6 +183,9 @@ def get_model_predictions() -> List[Dict[str, Any]]:
     """
     
     # For testing with mock data:
+    now = datetime.utcnow()
+    kickoff = now.replace(hour=now.hour + 2, minute=0, second=0)  # 2 hours from now
+    
     return [
         {
             'fixture_id': '12345',
@@ -188,7 +194,8 @@ def get_model_predictions() -> List[Dict[str, Any]]:
             'market': 'over_2_5',
             'prob_over': 0.58,
             'best_odds': 1.92,
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': now.isoformat() + 'Z',
+            'kickoff': kickoff.isoformat() + 'Z',
         },
         {
             'fixture_id': '12346',
@@ -197,7 +204,8 @@ def get_model_predictions() -> List[Dict[str, Any]]:
             'market': 'over_2_5',
             'prob_over': 0.64,
             'best_odds': 1.88,
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': now.isoformat() + 'Z',
+            'kickoff': kickoff.isoformat() + 'Z',
         },
     ]
 

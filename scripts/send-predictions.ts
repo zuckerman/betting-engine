@@ -19,7 +19,8 @@ interface ModelPrediction {
   market: string; // "over_2_5" | "under_2_5" | etc
   prob_over: number; // 0-1
   best_odds: number; // 1.0+
-  timestamp: string; // ISO string
+  timestamp: string; // ISO string (when prediction was made)
+  kickoff: string; // ISO string (when event starts)
 }
 
 // ============================================================================
@@ -27,11 +28,14 @@ interface ModelPrediction {
 // ============================================================================
 
 interface AdaptedPrediction {
-  event: string;
+  fixture_id: string;
+  home: string;
+  away: string;
   market: string;
   modelProbability: number;
   oddsTaken: number;
   timestamp: string;
+  kickoff: string;
 }
 
 function mapMarket(market: string): string {
@@ -44,11 +48,14 @@ function mapMarket(market: string): string {
 
 function adaptPrediction(model: ModelPrediction): AdaptedPrediction {
   return {
-    event: `${model.home} vs ${model.away}`,
+    fixture_id: model.fixture_id,
+    home: model.home,
+    away: model.away,
     market: mapMarket(model.market),
     modelProbability: model.prob_over,
     oddsTaken: model.best_odds,
     timestamp: model.timestamp,
+    kickoff: model.kickoff,
   };
 }
 
@@ -63,7 +70,7 @@ function validatePrediction(pred: AdaptedPrediction): { valid: boolean; reason?:
   if (pred.oddsTaken <= 1) {
     return { valid: false, reason: 'Odds must be > 1.0' };
   }
-  if (!pred.event || !pred.market || !pred.timestamp) {
+  if (!pred.fixture_id || !pred.home || !pred.away || !pred.market || !pred.timestamp || !pred.kickoff) {
     return { valid: false, reason: 'Missing required fields' };
   }
   return { valid: true };
@@ -129,7 +136,7 @@ async function runPipeline(
       // Log result
       if (response.success) {
         console.log(
-          `✅ SENT: ${pred.fixture_id} | event="${adapted.event}" | edge=${response.prediction?.edge || 'N/A'}`
+          `✅ SENT: ${pred.fixture_id} | event="${adapted.home} vs ${adapted.away}" | edge=${response.prediction?.edge || 'N/A'}`
         );
         sent++;
       } else if (response.skipped) {
@@ -193,6 +200,9 @@ async function getModelPredictions(): Promise<ModelPrediction[]> {
   // return predictions;
   
   // For testing with mock data:
+  const now = new Date();
+  const kickoffTime = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours from now
+  
   return [
     {
       fixture_id: '12345',
@@ -201,7 +211,8 @@ async function getModelPredictions(): Promise<ModelPrediction[]> {
       market: 'over_2_5',
       prob_over: 0.58,
       best_odds: 1.92,
-      timestamp: new Date().toISOString(),
+      timestamp: now.toISOString(),
+      kickoff: kickoffTime.toISOString(),
     },
     {
       fixture_id: '12346',
@@ -210,7 +221,8 @@ async function getModelPredictions(): Promise<ModelPrediction[]> {
       market: 'over_2_5',
       prob_over: 0.64,
       best_odds: 1.88,
-      timestamp: new Date().toISOString(),
+      timestamp: now.toISOString(),
+      kickoff: kickoffTime.toISOString(),
     },
   ];
 }

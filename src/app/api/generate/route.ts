@@ -11,11 +11,14 @@ const supabase = createClient(
  * 
  * LOCKED INPUT FORMAT (NO EXCEPTIONS):
  * {
- *   "event": string,
+ *   "fixture_id": string,
+ *   "home": string,
+ *   "away": string,
  *   "market": string,
  *   "modelProbability": number (0-1),
  *   "oddsTaken": number (1.0+),
- *   "timestamp": ISO string
+ *   "timestamp": ISO string (prediction time),
+ *   "kickoff": ISO string (event start time)
  * }
  * 
  * Edge gate: (modelProbability * oddsTaken) > 1
@@ -25,11 +28,14 @@ const supabase = createClient(
  * No optional fields. No manual overrides. No cheating.
  */
 type PredictionInput = {
-  event: string;
+  fixture_id: string;
+  home: string;
+  away: string;
   market: string;
   modelProbability: number;
   oddsTaken: number;
   timestamp: string;
+  kickoff: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -37,17 +43,34 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     const {
-      event,
+      fixture_id,
+      home,
+      away,
       market,
       modelProbability,
       oddsTaken,
-      timestamp
+      timestamp,
+      kickoff
     } = body as PredictionInput;
 
     // 🚫 HARD VALIDATION (reject contaminated data)
-    if (!event || typeof event !== 'string' || event.trim().length === 0) {
+    if (!fixture_id || typeof fixture_id !== 'string' || fixture_id.trim().length === 0) {
       return NextResponse.json(
-        { error: 'Invalid event: must be non-empty string' },
+        { error: 'Invalid fixture_id: must be non-empty string' },
+        { status: 400 }
+      );
+    }
+
+    if (!home || typeof home !== 'string' || home.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Invalid home: must be non-empty string' },
+        { status: 400 }
+      );
+    }
+
+    if (!away || typeof away !== 'string' || away.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Invalid away: must be non-empty string' },
         { status: 400 }
       );
     }
@@ -80,11 +103,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify ISO timestamp is valid
-    const date = new Date(timestamp);
-    if (isNaN(date.getTime())) {
+    if (!kickoff || typeof kickoff !== 'string') {
+      return NextResponse.json(
+        { error: 'Invalid kickoff: must be ISO string' },
+        { status: 400 }
+      );
+    }
+
+    // Verify both timestamps are valid
+    const placedDate = new Date(timestamp);
+    const kickoffDate = new Date(kickoff);
+    if (isNaN(placedDate.getTime())) {
       return NextResponse.json(
         { error: 'Invalid timestamp: not valid ISO string' },
+        { status: 400 }
+      );
+    }
+    if (isNaN(kickoffDate.getTime())) {
+      return NextResponse.json(
+        { error: 'Invalid kickoff: not valid ISO string' },
         { status: 400 }
       );
     }
@@ -108,17 +145,22 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase
       .from('predictions')
       .insert({
-        league: 'test',
+        match_id: fixture_id.trim(),
+        home_team: home.trim(),
+        away_team: away.trim(),
         market: market.trim(),
         model_probability: modelProbability,
         odds_taken: oddsTaken,
         implied_probability: impliedProbability,
         edge: parseFloat(edgeValue.toFixed(4)),
-        placed_at: new Date(timestamp).toISOString(),
+        placed_at: placedDate.toISOString(),
+        kickoff_at: kickoffDate.toISOString(),
+        event_start: kickoffDate.toISOString(),
         result: null,
         closing_odds: null,
         settled_at: null,
-        clv: null
+        clv: null,
+        settled: false
       })
       .select();
 
@@ -134,11 +176,12 @@ export async function POST(req: NextRequest) {
       success: true,
       prediction: {
         id: data?.[0]?.id,
-        event,
+        event: `${home} vs ${away}`,
         market,
         edge: parseFloat(edgeValue.toFixed(4)),
         modelProbability,
-        impliedProbability: parseFloat(impliedProbability.toFixed(4))
+        impliedProbability: parseFloat(impliedProbability.toFixed(4)),
+        kickoff
       }
     });
 
