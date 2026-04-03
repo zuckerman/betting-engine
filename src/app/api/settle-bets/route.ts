@@ -11,23 +11,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret
+  // Verify cron secret (optional for testing locally)
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const supabase = getSupabaseAdmin();
 
-    // Get unsettled bets that are past their kickoff time
+    // Get unsettled predictions with odds_taken (not kickoff time yet - for now settle all recent ones)
     const now = new Date();
     const { data: unsettledBets, error: queryError } = await supabase
       .from('predictions')
       .select('*')
-      .is('result', null)
-      .lt('kickoff_at', now.toISOString())
-      .limit(50); // Settle max 50 per run to avoid timeout
+      .is('settled_at', null)
+      .gt('placed_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24h
+      .limit(100); // Settle max 100 per run to avoid timeout
 
     if (queryError) {
       console.error('Query error:', queryError);
@@ -35,35 +35,46 @@ export async function GET(request: NextRequest) {
     }
 
     if (!unsettledBets || unsettledBets.length === 0) {
-      return NextResponse.json({ settled: 0, message: 'No bets to settle' });
+      return NextResponse.json({ 
+        settled: 0, 
+        message: 'No predictions to settle',
+        timestamp: now.toISOString()
+      });
     }
 
-    // Settle each bet
+    console.log(`[SETTLE] Found ${unsettledBets.length} unsettled predictions`);
+
+    // Settle each prediction
     const updates = unsettledBets.map((bet) => {
-      // For now: mock results (50/50 win/loss)
+      // For now: mock results (50/50 win/loss based on probability)
       // TODO: Replace with real odds/result API
-      const result = Math.random() > 0.5 ? 'win' : 'loss';
+      const isWin = Math.random() < (bet.model_probability || 0.5);
+      const result = isWin ? 'WIN' : 'LOSS';
 
-      // Mock closing odds (±10% variance from opening)
-      const variance = 0.9 + Math.random() * 0.2;
-      const closingOdds = bet.odds_taken * variance;
+      // Mock closing odds (±5-15% variance from opening)
+      // Real implementation: fetch from odds API
+      const variance = 0.85 + Math.random() * 0.3;
+      const closingOdds = (bet.odds_taken || 1.5) * variance;
 
-      // CLV = difference in implied probability
+      // CLV = (closing_implied - opening_implied)
+      // Positive CLV = you beat the market at closing price
       const closingImplied = 1 / closingOdds;
-      const openingImplied = 1 / bet.odds_taken;
+      const openingImplied = 1 / (bet.odds_taken || 1.5);
       const clv = closingImplied - openingImplied;
 
       return {
         id: bet.id,
         result,
-        closing_odds: closingOdds,
-        clv,
+        closing_odds: parseFloat(closingOdds.toFixed(2)),
+        clv: parseFloat(clv.toFixed(4)),
         settled_at: now.toISOString(),
       };
     });
 
     // Batch update
     let settledCount = 0;
+    let errorCount = 0;
+
     for (const update of updates) {
       const { error: updateError } = await supabase
         .from('predictions')
@@ -78,19 +89,24 @@ export async function GET(request: NextRequest) {
       if (!updateError) {
         settledCount++;
       } else {
-        console.error(`Error settling bet ${update.id}:`, updateError);
+        errorCount++;
+        console.error(`Error settling prediction ${update.id}:`, updateError);
       }
     }
 
+    console.log(`[SETTLE] Complete: ${settledCount} settled, ${errorCount} errors`);
+
     return NextResponse.json({
       settled: settledCount,
+      failed: errorCount,
       total: updates.length,
-      message: `Settled ${settledCount} / ${updates.length} bets`,
+      message: `Settled ${settledCount} / ${updates.length} predictions`,
+      timestamp: now.toISOString()
     });
   } catch (error) {
     console.error('Settle bets error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: String(error) },
       { status: 500 }
     );
   }
