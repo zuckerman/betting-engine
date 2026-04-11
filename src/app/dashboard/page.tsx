@@ -88,6 +88,9 @@ export default function Dashboard() {
           <Link href="/arb" className="text-sm text-gray-400 hover:text-white">
             Arb / EV
           </Link>
+          <Link href="/value-bets" className="text-sm text-gray-400 hover:text-white">
+            Value Bets
+          </Link>
           <Link href="/calculators" className="text-sm text-gray-400 hover:text-white">
             Calculators
           </Link>
