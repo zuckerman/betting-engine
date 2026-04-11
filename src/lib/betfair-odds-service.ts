@@ -1,9 +1,11 @@
 /**
  * Betfair Odds Service
- * 
+ *
  * Fetches live and closing odds from Betfair API
  * Ready to switch from mock to real with environment variables
  */
+
+import { getBetfairHeaders, isBetfairConfigured } from './betfair-auth'
 
 export type BetfairOdds = {
   back: number | null
@@ -20,15 +22,7 @@ export type RunnerOdds = Record<number, BetfairOdds>
 
 const BETFAIR_API_URL = "https://api.betfair.com/exchange/betting/json-rpc/v1"
 
-const APP_KEY = process.env.BETFAIR_APP_KEY
-const SESSION_TOKEN = process.env.BETFAIR_SESSION_TOKEN
-
-/**
- * Check if real Betfair credentials are configured
- */
-export function isBetfairLive(): boolean {
-  return !!APP_KEY && !!SESSION_TOKEN
-}
+export { isBetfairConfigured as isBetfairLive } from './betfair-auth'
 
 // ============================================================================
 // REAL BETFAIR API CALLS
@@ -38,17 +32,10 @@ export function isBetfairLive(): boolean {
  * Get football markets from Betfair
  */
 export async function getFootballMarkets() {
-  if (!APP_KEY || !SESSION_TOKEN) {
-    throw new Error("Betfair credentials not configured")
-  }
-
+  const headers = await getBetfairHeaders()
   const response = await fetch(BETFAIR_API_URL, {
     method: "POST",
-    headers: {
-      "X-Application": APP_KEY,
-      "X-Authentication": SESSION_TOKEN,
-      "Content-Type": "application/json"
-    },
+    headers,
     body: JSON.stringify({
       jsonrpc: "2.0",
       method: "SportsAPING/v1.0/listMarketCatalogue",
@@ -81,17 +68,10 @@ export async function getFootballMarkets() {
  * Get live odds for a specific market
  */
 export async function getMarketOdds(marketId: string): Promise<RunnerOdds> {
-  if (!APP_KEY || !SESSION_TOKEN) {
-    throw new Error("Betfair credentials not configured")
-  }
-
+  const headers = await getBetfairHeaders()
   const response = await fetch(BETFAIR_API_URL, {
     method: "POST",
-    headers: {
-      "X-Application": APP_KEY,
-      "X-Authentication": SESSION_TOKEN,
-      "Content-Type": "application/json"
-    },
+    headers,
     body: JSON.stringify({
       jsonrpc: "2.0",
       method: "SportsAPING/v1.0/listMarketBook",

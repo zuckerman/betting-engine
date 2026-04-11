@@ -79,6 +79,9 @@ export default function Dashboard() {
           <Link href="/performance" className="text-sm text-gray-400 hover:text-white">
             Performance
           </Link>
+          <Link href="/performance/tracker" className="text-sm text-gray-400 hover:text-white">
+            P&amp;L Tracker
+          </Link>
           <Link href="/dashboard/quant" className="text-sm text-gray-400 hover:text-white">
             Quant Edge System
           </Link>
