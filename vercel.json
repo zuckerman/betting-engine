@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "claude/deploy-login-pin-feature-seTG8": true
+    }
+  },
   "crons": [
     {
       "path": "/api/generate",
