@@ -86,7 +86,10 @@ export default function Dashboard() {
             Quant Edge System
           </Link>
           <Link href="/arb" className="text-sm text-gray-400 hover:text-white">
-            Arb / EV Calc
+            Arb / EV
+          </Link>
+          <Link href="/calculators" className="text-sm text-gray-400 hover:text-white">
+            Calculators
           </Link>
           <Link href="/edge" className="text-sm text-gray-400 hover:text-white">
             Line Shop
