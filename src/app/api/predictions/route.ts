@@ -1,18 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-)
-
 /**
  * /api/predictions
- * 
+ *
  * Debug endpoint to view all predictions
  * Shows status, CLV, edges - visibility into signal pipeline
  */
 export async function GET(request: Request) {
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   try {
     const url = new URL(request.url)
     const settled = url.searchParams.get('settled')

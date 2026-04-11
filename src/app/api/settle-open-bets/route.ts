@@ -9,11 +9,6 @@ import {
   getTimeToKickoffHours,
 } from '@/lib/clp'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-)
-
 const ODDS_API_KEY = process.env.ODDS_API_KEY || ''
 const SHARP_BOOKS = ['pinnacle', 'matchbook', 'betfair_ex']
 
@@ -125,6 +120,7 @@ function extractClosing(bookmakers: any[] | null): number | null {
 }
 
 export async function POST() {
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   try {
     const { data: predictions, error: fetchErr } = await supabase
       .from('predictions')

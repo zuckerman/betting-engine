@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-)
-
 /**
  * /api/metrics/diagnostic
  *
@@ -18,6 +13,7 @@ const supabase = createClient(
  * This is how you find profitable hunting grounds
  */
 export async function GET(req: Request) {
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   try {
     const url = new URL(req.url)
     const league = url.searchParams.get('league')

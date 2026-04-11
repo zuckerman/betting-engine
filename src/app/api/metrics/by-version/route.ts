@@ -1,19 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-)
-
 /**
  * /api/metrics/by-version
- * 
+ *
  * Compare performance across system versions
  * Shows CLV, ROI, win rate split by v1 vs v2
  * This is the A/B test comparison dashboard
  */
 export async function GET(req: Request) {
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   try {
     const url = new URL(req.url)
     const modelVersion = url.searchParams.get('model_version')

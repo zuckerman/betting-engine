@@ -8,11 +8,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-)
-
 const ODDS_API_KEY = process.env.ODDS_API_KEY
 const ODDS_API_BASE = 'https://api.the-odds-api.com/v4'
 
@@ -113,6 +108,7 @@ export async function GET(req: Request) {
  * Call this as a cron job (every hour) to populate closing_odds
  */
 export async function POST(req: Request) {
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   if (!ODDS_API_KEY) {
     return NextResponse.json(
       { error: 'ODDS_API_KEY not configured' },

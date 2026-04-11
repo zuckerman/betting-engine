@@ -6,11 +6,6 @@
 import { createClient } from "@supabase/supabase-js"
 import { ALERTS } from "./alerts"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 interface MonitoringReport {
   timestamp: Date
   alerts: string[]
@@ -29,6 +24,7 @@ interface MonitoringReport {
  * Main monitoring function
  */
 export async function monitorSystem(): Promise<MonitoringReport> {
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   const alerts: string[] = []
   const now = new Date()
 

@@ -3,12 +3,8 @@ import { fetchEPLResults } from '@/lib/ratings/fetch-results'
 import { calculateRatings } from '@/lib/ratings/calculate-ratings'
 import { NextResponse } from 'next/server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 async function syncTeamRatings() {
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   console.log('Fetching EPL results...')
   const results = await fetchEPLResults(2)
   console.log(`${results.length} matches loaded`)
