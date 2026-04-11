@@ -9,11 +9,27 @@ import SignalFeed from "@/components/SignalFeed";
 import LiveMetrics from "@/components/LiveMetrics";
 import Controls from "@/components/Controls";
 import { startScheduler } from "@/lib/scheduler";
+import { Signal } from "@/lib/hooks/useSignals";
 
 export default function Dashboard() {
   const [isPro, setIsPro] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [betConfirm, setBetConfirm] = useState<string | null>(null);
   const router = useRouter();
+
+  const handleBet = async (signal: Signal) => {
+    try {
+      await fetch('/api/run-loop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manual: true, fixture_id: signal.fixture_id }),
+      });
+    } catch {}
+    setBetConfirm(
+      `✅ Bet logged: ${signal.home} vs ${signal.away} — ${signal.market} @ ${signal.odds.toFixed(2)} — £${signal.decision.stake}`
+    );
+    setTimeout(() => setBetConfirm(null), 5000);
+  };
 
   // VALIDATION MODE: Auth disabled + Start signal scheduler
   // Dev user stubbed for local testing
@@ -100,7 +116,12 @@ export default function Dashboard() {
               </p>
             </div>
           )}
-          <SignalFeed isPro={isPro} />
+          {betConfirm && (
+            <div className="mb-3 p-3 bg-green-900/40 border border-green-600/50 rounded-lg text-green-300 text-sm">
+              {betConfirm}
+            </div>
+          )}
+          <SignalFeed isPro={isPro} onBet={handleBet} />
         </div>
       </div>
 

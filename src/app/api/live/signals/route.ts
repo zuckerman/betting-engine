@@ -28,6 +28,7 @@ export async function GET() {
       fixture_id: pred.match_id || pred.id,
       home: pred.home_team || 'Unknown',
       away: pred.away_team || 'Unknown',
+      market: pred.market || 'Unknown',
       odds: pred.odds_taken || 0,
       model_odds: pred.model_probability ? 1 / pred.model_probability : 0,
       edge: pred.edge || 0,

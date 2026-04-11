@@ -4,6 +4,7 @@ export interface Signal {
   fixture_id: number | string;
   home: string;
   away: string;
+  market: string;
   odds: number;
   model_odds: number;
   edge: number;

@@ -56,14 +56,19 @@ export default function SignalCard({ signal, onBet, onSkip }: SignalCardProps) {
         <div className={`text-2xl font-bold ${edgeColor}`}>+{edge}%</div>
       </div>
 
+      {/* Market */}
+      <div className="text-xs font-semibold text-blue-300 mb-2 uppercase tracking-wide">
+        {signal.market}
+      </div>
+
       {/* Odds Comparison */}
       <div className="bg-zinc-800/50 p-2 rounded text-xs mb-3">
         <div className="flex justify-between">
-          <span className="text-zinc-400">Market:</span>
+          <span className="text-zinc-400">Market odds:</span>
           <span className="font-mono text-white">{signal.odds.toFixed(2)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-zinc-400">Model:</span>
+          <span className="text-zinc-400">Model odds:</span>
           <span className="font-mono text-green-400">{signal.model_odds.toFixed(2)}</span>
         </div>
       </div>
