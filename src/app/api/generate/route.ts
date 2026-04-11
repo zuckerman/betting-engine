@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getStake } from '@/lib/staking';
+import { getPhaseConfig } from '@/lib/season-manager';
 
 /**
  * /api/generate
@@ -128,20 +129,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 🎯 EDGE GATE (NON-NEGOTIABLE)
-    // Only accept bets where (probability × odds) - 1 > 0 (positive EV)
+    // Season phase — determines edge gate and stake sizing
+    const phaseConfig = getPhaseConfig()
+
+    // EDGE GATE — phase-aware (tighter in new season / off-season)
+    // NEW_SEASON: 5% minimum edge (calibration window, model untested on new squads)
+    // OFF_SEASON / MID_SEASON: 3% minimum edge
     const edgeValue = (modelProbability * oddsTaken) - 1;
 
-    if (edgeValue <= 0) {
+    if (edgeValue < phaseConfig.minEdgeGate) {
       return NextResponse.json({
         skipped: true,
-        reason: 'No positive edge',
-        edge: parseFloat((edgeValue * 100).toFixed(2)) // Show as percentage
+        reason: edgeValue <= 0
+          ? 'No positive edge'
+          : `Edge ${(edgeValue * 100).toFixed(1)}% below ${phaseConfig.description.split(':')[0]} gate (${(phaseConfig.minEdgeGate * 100).toFixed(0)}% min)`,
+        edge: parseFloat((edgeValue * 100).toFixed(2)),
+        phaseGate: phaseConfig.minEdgeGate,
       });
     }
 
-    // � Calculate smart stake using fractional Kelly
-    const stake = getStake(modelProbability, oddsTaken);
+    // Calculate smart stake using fractional Kelly x phase multiplier
+    // NEW_SEASON = 0.5x, OFF_SEASON = 0.75x, MID/END = 1.0x
+    const baseStake = getStake(modelProbability, oddsTaken);
+    const stake = parseFloat((baseStake * phaseConfig.stakeMultiplier).toFixed(2));
 
     // �📊 Calculate implied probability from odds
     const impliedProbability = 1 / oddsTaken;

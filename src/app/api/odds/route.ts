@@ -1,12 +1,14 @@
 /**
  * Real Odds Pipeline
- * 
+ *
  * Fetches live odds for upcoming fixtures and closing odds at kickoff
  * Stores real market data that can be used for signal generation and CLV calculation
+ * Season-aware: uses getActiveLeagues() so coverage expands automatically during off-season
  */
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getActiveLeagues } from '@/lib/season-manager'
 
 const ODDS_API_KEY = process.env.ODDS_API_KEY
 const ODDS_API_BASE = 'https://api.the-odds-api.com/v4'
@@ -25,9 +27,10 @@ interface UpcomingFixture {
 
 /**
  * GET /api/odds/upcoming
- * 
- * Fetch live odds for upcoming EPL matches
- * Returns fixtures with real bookmaker odds (next 7 days)
+ *
+ * Fetch live odds for upcoming fixtures across all currently active leagues.
+ * During off-season (Jun-Jul) this automatically expands to fill leagues
+ * (MLS, Brasileirão, Turkish Süper Lig, etc.) so the engine never goes dark.
  */
 export async function GET(req: Request) {
   if (!ODDS_API_KEY) {
@@ -37,68 +40,67 @@ export async function GET(req: Request) {
     )
   }
 
-  try {
-    // Fetch upcoming EPL matches from The Odds API
-    const response = await fetch(
-      `${ODDS_API_BASE}/sports/soccer_epl/odds?apiKey=${ODDS_API_KEY}&regions=uk&markets=h2h&dateFormat=iso&oddsFormat=decimal`,
-      { next: { revalidate: 300 } } // Cache for 5 minutes
-    )
+  const activeLeagues = getActiveLeagues()
+  const fixtures: (UpcomingFixture & { league: string; leagueKey: string })[] = []
+  const errors: string[] = []
 
-    if (!response.ok) {
-      throw new Error(`Odds API returned ${response.status}`)
+  for (const league of activeLeagues) {
+    try {
+      const response = await fetch(
+        `${ODDS_API_BASE}/sports/${league.key}/odds?apiKey=${ODDS_API_KEY}&regions=uk,eu&markets=h2h&dateFormat=iso&oddsFormat=decimal`,
+        { next: { revalidate: 300 } }
+      )
+
+      if (!response.ok) {
+        errors.push(`${league.name}: ${response.status}`)
+        continue
+      }
+
+      const events = await response.json()
+      if (!Array.isArray(events)) continue
+
+      for (const event of events) {
+        if (!event.bookmakers || event.bookmakers.length === 0) continue
+
+        const bm = event.bookmakers[0]
+        const market = bm.markets?.find((m: any) => m.key === 'h2h')
+
+        if (!market || !market.outcomes) continue
+
+        const outcomes = market.outcomes
+        const home = outcomes.find((o: any) => o.name === event.home_team)
+        const away = outcomes.find((o: any) => o.name === event.away_team)
+        const draw = outcomes.find((o: any) => o.name === 'Draw')
+
+        if (!home || !away || !draw) continue
+
+        fixtures.push({
+          fixtureId: event.id,
+          homeTeam: event.home_team,
+          awayTeam: event.away_team,
+          kickoff: event.commence_time,
+          league: league.name,
+          leagueKey: league.key,
+          marketOdds: {
+            home: home.price,
+            draw: draw.price,
+            away: away.price,
+          },
+        })
+      }
+    } catch (err) {
+      errors.push(`${league.name}: ${err instanceof Error ? err.message : String(err)}`)
     }
-
-    const events = await response.json()
-
-    if (!Array.isArray(events)) {
-      throw new Error('Invalid response format from Odds API')
-    }
-
-    // Parse into our format
-    const fixtures: UpcomingFixture[] = []
-
-    for (const event of events) {
-      if (!event.bookmakers || event.bookmakers.length === 0) continue
-
-      // Get odds from first available bookmaker (usually sharpest)
-      const bm = event.bookmakers[0]
-      const market = bm.markets?.find((m: any) => m.key === 'h2h')
-      
-      if (!market || !market.outcomes) continue
-
-      const outcomes = market.outcomes
-      const home = outcomes.find((o: any) => o.name === event.home_team)
-      const away = outcomes.find((o: any) => o.name === event.away_team)
-      const draw = outcomes.find((o: any) => o.name === 'Draw')
-
-      if (!home || !away || !draw) continue
-
-      fixtures.push({
-        fixtureId: event.id,
-        homeTeam: event.home_team,
-        awayTeam: event.away_team,
-        kickoff: event.commence_time,
-        marketOdds: {
-          home: home.price,
-          draw: draw.price,
-          away: away.price
-        }
-      })
-    }
-
-    return NextResponse.json({
-      success: true,
-      fixtures,
-      count: fixtures.length,
-      timestamp: new Date().toISOString()
-    })
-  } catch (err) {
-    console.error('[ODDS_PIPELINE] Error fetching odds:', err)
-    return NextResponse.json(
-      { error: `Error: ${err instanceof Error ? err.message : String(err)}` },
-      { status: 500 }
-    )
   }
+
+  return NextResponse.json({
+    success: true,
+    fixtures,
+    count: fixtures.length,
+    leaguesCovered: activeLeagues.map(l => l.name),
+    errors: errors.length > 0 ? errors : undefined,
+    timestamp: new Date().toISOString(),
+  })
 }
 
 /**

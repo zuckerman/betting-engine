@@ -8,6 +8,7 @@ import {
 import { detectRegime } from '@/lib/market-regime';
 import { createModelVersion, updateModelMetrics, compareModels } from '@/lib/model-version';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
+import { getSeasonPhase, getPhaseConfig, checkModelStaleness } from '@/lib/season-manager';
 
 /**
  * POST /api/train
@@ -33,12 +34,19 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
 
-    // 1. FETCH ALL PREDICTIONS WITH OUTCOMES
+    // Detect season phase — affects training behaviour
+    const phase = getSeasonPhase()
+    const phaseConfig = getPhaseConfig()
+    console.log(`🗓️ Season phase: ${phase} — training window: ${phaseConfig.trainingWindow} days`)
+
+    // 1. FETCH PREDICTIONS WITHIN ROLLING TRAINING WINDOW
     console.log('📊 Fetching predictions...');
+    const windowStart = new Date(Date.now() - phaseConfig.trainingWindow * 24 * 60 * 60 * 1000).toISOString()
     const { data: predictions, error: fetchError } = await supabase
       .from('predictions')
       .select('*')
       .not('closing_odds', 'is', null)
+      .gte('placed_at', windowStart)
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -225,9 +233,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 9. SUMMARY REPORT
+    // 9. RECORD TRAINING TIMESTAMP for staleness checks
+    await supabase.from('system_metrics').upsert({
+      id: 1,
+      last_trained_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+
+    // Check staleness state after this run
+    const stalenessReport = checkModelStaleness(new Date().toISOString())
+
+    // 10. SUMMARY REPORT
     const trainingReport = {
       timestamp: new Date().toISOString(),
+      seasonPhase: phase,
+      trainingWindowDays: phaseConfig.trainingWindow,
       predictionsProcessed: predictions.length,
       calibrationError: `${(calibError * 100).toFixed(2)}%`,
       calibrationIssues: {
@@ -242,6 +262,7 @@ export async function POST(request: NextRequest) {
           .map(([k, v]) => `${k}: ${(v * 100).toFixed(1)}%`),
       },
       modelComparison: 'See model_versions table for details',
+      staleness: stalenessReport,
     };
 
     console.log('📋 Training report:', trainingReport);

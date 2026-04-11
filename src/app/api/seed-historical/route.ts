@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getStake } from '@/lib/staking'
+import { getActiveLeagues } from '@/lib/season-manager'
 
 export const dynamic = 'force-dynamic'
 
 const ODDS_API_BASE = 'https://api.the-odds-api.com/v4'
-
-// Leagues to seed — ordered by data quality
-const LEAGUES = [
-  { key: 'soccer_epl',              name: 'EPL' },
-  { key: 'soccer_england_championship', name: 'Championship' },
-  { key: 'soccer_spain_la_liga',    name: 'LaLiga' },
-  { key: 'soccer_germany_bundesliga', name: 'Bundesliga' },
-  { key: 'soccer_italy_serie_a',    name: 'SerieA' },
-  { key: 'soccer_france_ligue_one', name: 'Ligue1' },
-]
 
 // How many days of history to request (Odds API: up to 3 on free, unlimited on paid)
 const DAYS_BACK = [1, 2, 3]
@@ -181,6 +172,9 @@ export async function POST(req: NextRequest) {
 
   const records: any[] = []
   const errors: string[] = []
+
+  // Use season-aware league list — expands to fill leagues during off-season
+  const LEAGUES = getActiveLeagues()
 
   for (const league of LEAGUES) {
     for (const daysFrom of DAYS_BACK) {
