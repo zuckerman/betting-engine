@@ -85,6 +85,9 @@ export default function Dashboard() {
           <Link href="/dashboard/quant" className="text-sm text-gray-400 hover:text-white">
             Quant Edge System
           </Link>
+          <Link href="/edge" className="text-sm text-gray-400 hover:text-white">
+            Line Shop / Arb
+          </Link>
           <Link href="/manager-market" className="text-sm text-gray-400 hover:text-white">
             Manager Market
           </Link>
