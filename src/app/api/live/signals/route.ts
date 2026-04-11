@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getStake } from '@/lib/staking'
 
 /**
  * /api/live/signals
@@ -38,7 +39,7 @@ export async function GET() {
             : 'LOW',
       decision: {
         action: 'BET' as const,
-        stake: 10,
+        stake: getStake(pred.model_probability || 0, pred.odds_taken || 0),
       },
     }))
 
