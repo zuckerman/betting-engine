@@ -192,7 +192,7 @@ export default function TrackerPage() {
                   <div key={i} className="flex justify-between items-start text-sm border-b border-zinc-800/50 pb-2">
                     <div>
                       <div className="text-white text-xs font-semibold">{b.fixture}</div>
-                      <div className="text-zinc-500 text-xs">{b.market} @ {b.odds.toFixed(2)} — £{b.stake}</div>
+                      <div className="text-zinc-500 text-xs">{b.market} @ {b.odds.toFixed(2)} — £{Math.round(b.stake)}</div>
                     </div>
                     <div className={`font-mono font-bold text-sm ${pnlColor(b.pnl)}`}>
                       {b.pnl >= 0 ? '+' : ''}£{b.pnl.toFixed(2)}

@@ -37,7 +37,18 @@ export async function GET() {
 
   // ── P&L per bet ──────────────────────────────────────────────────────────
   const betsWithPnl = bets.map((b: any) => {
-    const stake = b.stake || 10
+    // Use stored stake; if missing or suspiciously small (legacy data < £2),
+    // fall back to a basic Kelly estimate so the P&L numbers are realistic.
+    const rawStake = b.stake ?? 0
+    const stake = rawStake >= 2 ? rawStake : (() => {
+      const p = b.model_probability || 0.5
+      const o = b.odds_taken || 2
+      const edge = p * o - 1
+      if (edge <= 0) return 5
+      const kelly = edge / (o - 1)
+      const s = 1000 * kelly * 0.25
+      return Math.max(5, Math.min(Math.round(s), 100))
+    })()
     const won = b.result === 'win'
     const pnl = won ? stake * (b.odds_taken - 1) : -stake
     return { ...b, stake, pnl }
@@ -109,9 +120,23 @@ export async function GET() {
       winRate: parseFloat((d.bets > 0 ? (d.wins / d.bets) * 100 : 0).toFixed(1)),
     }))
 
-  // ── Best / worst bets ─────────────────────────────────────────────────────
-  const sorted = [...betsWithPnl].sort((a: any, b: any) => b.pnl - a.pnl)
-  const bestBets = sorted.slice(0, 5).map((b: any) => ({
+  // ── Best / worst bets (deduplicated by fixture) ───────────────────────────
+  // Pick the single best and worst market per fixture to avoid the same game
+  // appearing in both lists when multiple markets are tracked per match.
+  const fixtureMap = new Map<string, any>()
+  for (const b of betsWithPnl) {
+    const key = `${b.home_team}|${b.away_team}`
+    const existing = fixtureMap.get(key)
+    // Keep the bet with highest absolute P&L per fixture (most impactful)
+    if (!existing || Math.abs(b.pnl) > Math.abs(existing.pnl)) {
+      fixtureMap.set(key, b)
+    }
+  }
+
+  const uniqueBets = Array.from(fixtureMap.values())
+  const sortedUnique = [...uniqueBets].sort((a: any, b: any) => b.pnl - a.pnl)
+
+  const bestBets = sortedUnique.slice(0, 5).map((b: any) => ({
     fixture: `${b.home_team} vs ${b.away_team}`,
     market: b.market,
     odds: b.odds_taken,
@@ -119,7 +144,7 @@ export async function GET() {
     pnl: parseFloat(b.pnl.toFixed(2)),
     date: b.placed_at,
   }))
-  const worstBets = sorted.slice(-5).reverse().map((b: any) => ({
+  const worstBets = sortedUnique.slice(-5).reverse().map((b: any) => ({
     fixture: `${b.home_team} vs ${b.away_team}`,
     market: b.market,
     odds: b.odds_taken,
