@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import {
+  predictClosingOdds,
+  calculateMarketMovement,
+  calculateCLPError,
+  calculateSignalQuality,
+  getEdgeBucket,
+  getTimeToKickoffHours,
+} from '@/lib/clp'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -184,6 +192,24 @@ export async function POST() {
 
       const clv = (entryOdds / closingOdds) - 1
 
+      // ✅ Calculate CLP + market movement metrics
+      const predictedClosing = predictClosingOdds({
+        entryOdds,
+        modelProbability: pred.model_probability,
+        edgePercent: pred.edge,
+        timeToKickoffHours: getTimeToKickoffHours(new Date(pred.kickoff_at)),
+      })
+
+      const movement = calculateMarketMovement(entryOdds, closingOdds)
+      const clpError = calculateCLPError(predictedClosing, closingOdds)
+      const quality = calculateSignalQuality({
+        clv,
+        movement,
+        clpError,
+      })
+
+      const edgeBucket = getEdgeBucket(pred.edge)
+
       const { error: updateErr } = await supabase
         .from('predictions')
         .update({
@@ -191,6 +217,13 @@ export async function POST() {
           clv: parseFloat((clv * 100).toFixed(2)),
           settled: true,
           settled_at: new Date().toISOString(),
+          // ✅ NEW: CLP + Movement tracking
+          predicted_closing_odds: predictedClosing,
+          market_movement: parseFloat(movement.toFixed(4)),
+          clp_error: parseFloat(clpError.toFixed(4)),
+          signal_quality: quality,
+          edge_bucket: edgeBucket,
+          time_to_kickoff_hours: getTimeToKickoffHours(new Date(pred.kickoff_at)),
         })
         .eq('id', pred.id)
 

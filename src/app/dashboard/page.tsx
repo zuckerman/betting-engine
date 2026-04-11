@@ -8,7 +8,6 @@ import StateBar from "@/components/StateBar";
 import SignalFeed from "@/components/SignalFeed";
 import LiveMetrics from "@/components/LiveMetrics";
 import Controls from "@/components/Controls";
-import { getSupabase } from "@/lib/supabase-client";
 import { startScheduler } from "@/lib/scheduler";
 
 export default function Dashboard() {
@@ -29,18 +28,10 @@ export default function Dashboard() {
 
   const handleUpgrade = async () => {
     try {
-      const supabase = getSupabase()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.user.email) {
-        alert('Not authenticated')
-        return
-      }
-
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: session.user.email }),
+        body: JSON.stringify({}),
       })
 
       const data = await res.json()
@@ -71,6 +62,12 @@ export default function Dashboard() {
           <Link href="/performance" className="text-sm text-gray-400 hover:text-white">
             Performance
           </Link>
+          <Link href="/dashboard/quant" className="text-sm text-gray-400 hover:text-white">
+            Quant Edge System
+          </Link>
+          <Link href="/manager-market" className="text-sm text-gray-400 hover:text-white">
+            Manager Market
+          </Link>
           {!isPro && (
             <button 
               onClick={handleUpgrade}
@@ -80,7 +77,10 @@ export default function Dashboard() {
             </button>
           )}
           <button 
-            onClick={() => getSupabase().auth.signOut().then(() => router.push('/auth/login'))}
+            onClick={() => {
+              document.cookie = 'rivva_pin=; path=/; max-age=0'
+              router.push('/auth/login')
+            }}
             className="text-sm text-gray-400 hover:text-white"
           >
             Logout

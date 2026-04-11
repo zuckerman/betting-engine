@@ -21,7 +21,7 @@ export default function SignalsPage() {
           <Link href="/performance" className="text-gray-600 hover:text-black">
             Performance
           </Link>
-          <Link href="/login" className="text-gray-600 hover:text-black">
+          <Link href="/auth/login" className="text-gray-600 hover:text-black">
             Login
           </Link>
         </div>
@@ -90,7 +90,7 @@ export default function SignalsPage() {
             Sign in to see personalized signals and place bets automatically
           </p>
           <Link
-            href="/login"
+            href="/auth/login"
             className="inline-block px-8 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-900"
           >
             Get Started

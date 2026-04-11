@@ -37,10 +37,14 @@ type PredictionInput = {
   oddsTaken: number;
   timestamp: string;
   kickoff: string;
+  league?: string;
 };
 
 export async function POST(req: NextRequest) {
   try {
+    const url = new URL(req.url)
+    const defaultLeague = url.searchParams.get('league') || 'EPL'
+    
     const body = await req.json();
 
     const {
@@ -51,7 +55,8 @@ export async function POST(req: NextRequest) {
       modelProbability,
       oddsTaken,
       timestamp,
-      kickoff
+      kickoff,
+      league = defaultLeague
     } = body as PredictionInput;
 
     // 🚫 HARD VALIDATION (reject contaminated data)
@@ -166,6 +171,7 @@ export async function POST(req: NextRequest) {
         settled_at: null,
         clv: null,
         settled: false,
+        league,
         // Version tagging (v1 baseline)
         model_version: 'poisson_v1',
         odds_version: 'sharp_avg_v1',

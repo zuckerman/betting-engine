@@ -3,99 +3,87 @@
 export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
-import { getSupabase } from '@/lib/supabase-client'
+import { useRouter } from 'next/navigation'
 import { GeistMono } from 'geist/font/mono'
 
+const CORRECT_PIN = process.env.NEXT_PUBLIC_RIVVA_PIN!
+
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [pin, setPin] = useState('')
+  const [error, setError] = useState('')
+  const [shaking, setShaking] = useState(false)
+  const router = useRouter()
 
-  const signIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    try {
-      const supabase = getSupabase()
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-
-      if (error) throw error
-      setSubmitted(true)
-    } catch (err) {
-      alert(`Error: ${(err as Error).message}`)
-    } finally {
-      setLoading(false)
+  const press = (k: string) => {
+    if (k === 'clear') { setPin(''); setError(''); return }
+    if (k === 'back') { setPin(p => p.slice(0, -1)); return }
+    if (pin.length >= 4) return
+    const next = pin + k
+    setPin(next)
+    if (next.length === 4) {
+      if (next === CORRECT_PIN) {
+        document.cookie = 'rivva_pin=1; path=/; max-age=86400; samesite=strict'
+        router.push('/dashboard')
+      } else {
+        setShaking(true)
+        setError('Incorrect PIN')
+        setTimeout(() => { setPin(''); setError(''); setShaking(false) }, 800)
+      }
     }
   }
 
+  const dots = Array.from({ length: 4 }, (_, i) => (
+    <div key={i} style={{
+      width: 14, height: 14, borderRadius: '50%',
+      background: i < pin.length ? '#000' : 'transparent',
+      border: '2px solid #ccc',
+      transition: 'background 0.1s'
+    }} />
+  ))
+
+  const keys = ['1','2','3','4','5','6','7','8','9','back','0','clear']
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-white px-4">
-      <div className="w-full max-w-sm">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Rivva</h1>
-          <p className="text-gray-600">Quant-driven sports signals</p>
+      <div className="w-full max-w-xs text-center">
+        <h1 className="text-3xl font-bold mb-1">Rivva</h1>
+        <p className="text-gray-500 text-sm mb-8">Quant-driven sports signals</p>
+
+        <div style={{
+          display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 8,
+          animation: shaking ? 'shake 0.3s ease' : 'none'
+        }}>
+          {dots}
         </div>
 
-        {submitted ? (
-          /* Success state */
-          <div className="space-y-4">
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-              <p className="text-sm text-green-800">
-                ✓ Check your email for a sign-in link
-              </p>
-            </div>
-            <p className="text-sm text-gray-600">
-              We sent a link to <strong>{email}</strong>. Click it to log in.
-            </p>
-            <button
-              onClick={() => {
-                setSubmitted(false)
-                setEmail('')
-              }}
-              className="w-full text-sm text-gray-600 hover:text-black underline"
-            >
-              Try another email
-            </button>
-          </div>
-        ) : (
-          /* Form state */
-          <form onSubmit={signIn} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-2">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-              />
-            </div>
+        <p style={{ minHeight: 20, fontSize: 13, color: '#e24b4a', marginBottom: 16 }}>
+          {error}
+        </p>
 
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, maxWidth: 220, margin: '0 auto' }}>
+          {keys.map(k => (
             <button
-              type="submit"
-              disabled={loading || !email}
-              className="w-full bg-black text-white py-2 rounded-lg font-medium hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              key={k}
+              onClick={() => press(k)}
+              className="py-3 text-lg font-medium border border-gray-200 rounded-lg hover:bg-gray-50 active:scale-95 transition-all"
             >
-              {loading ? 'Sending...' : 'Sign in'}
+              {k === 'back' ? '⌫' : k === 'clear' ? 'CLR' : k}
             </button>
-          </form>
-        )}
-
-        {/* Footer */}
-        <div className={`mt-8 text-xs text-gray-500 ${GeistMono.className}`}>
-          <p>🔐 Email-based sign-in only. No passwords stored.</p>
+          ))}
         </div>
+
+        <p className={`mt-8 text-xs text-gray-400 ${GeistMono.className}`}>
+          🔐 PIN-protected access only.
+        </p>
       </div>
+
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0) }
+          25% { transform: translateX(-8px) }
+          75% { transform: translateX(8px) }
+        }
+      `}</style>
     </div>
   )
 }
