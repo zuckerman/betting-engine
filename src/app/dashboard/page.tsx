@@ -10,6 +10,7 @@ import LiveMetrics from "@/components/LiveMetrics";
 import Controls from "@/components/Controls";
 import { startScheduler } from "@/lib/scheduler";
 import { Signal } from "@/lib/hooks/useSignals";
+import SharpMoneyFeed from "@/components/SharpMoneyFeed";
 
 export default function Dashboard() {
   const [isPro, setIsPro] = useState(false);
@@ -104,8 +105,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* LEFT — Signals (7 columns) */}
-      <div className="col-span-7 p-4 overflow-y-auto border-r border-zinc-800 scrollbar-hide">
+      {/* LEFT — Signals (4 columns) */}
+      <div className="col-span-4 p-4 overflow-y-auto border-r border-zinc-800 scrollbar-hide">
         <div className="max-w-3xl">
           <h1 className="text-2xl font-bold mb-4">Signal Terminal</h1>
           <StateBar />
@@ -125,19 +126,26 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* CENTER-RIGHT — Metrics (3 columns) */}
-      <div className={`col-span-3 p-4 border-r border-zinc-800 overflow-y-auto scrollbar-hide ${GeistMono.className}`}>
+      {/* CENTRE — Sharp Money (3 columns) */}
+      <div className="col-span-3 p-4 border-r border-zinc-800 overflow-y-auto scrollbar-hide">
         <div className="sticky top-0">
-          <h2 className="text-lg font-bold mb-4">Live Metrics</h2>
-          <LiveMetrics />
+          <h2 className="text-lg font-bold mb-1">Sharp Money</h2>
+          <p className="text-xs text-zinc-500 mb-4">Betfair volume &amp; steam alerts</p>
+          <SharpMoneyFeed />
         </div>
       </div>
 
-      {/* RIGHT — Controls (2 columns) */}
-      <div className="col-span-2 p-4 overflow-y-auto scrollbar-hide">
-        <div className="sticky top-0">
-          <h2 className="text-lg font-bold mb-4">Control</h2>
-          <Controls />
+      {/* RIGHT — Metrics + Controls (2 columns) */}
+      <div className={`col-span-2 p-4 overflow-y-auto scrollbar-hide ${GeistMono.className}`}>
+        <div className="sticky top-0 space-y-6">
+          <div>
+            <h2 className="text-lg font-bold mb-4">Live Metrics</h2>
+            <LiveMetrics />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold mb-4">Control</h2>
+            <Controls />
+          </div>
         </div>
       </div>
     </div>
