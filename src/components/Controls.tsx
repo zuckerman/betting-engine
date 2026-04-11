@@ -6,6 +6,34 @@ import { useState } from "react";
 export default function Controls() {
   const { mode, killSwitch, setMode, setKillSwitch } = useControlMode();
   const [loading, setLoading] = useState(false);
+  const [seedStatus, setSeedStatus] = useState<string | null>(null);
+  const [trainStatus, setTrainStatus] = useState<string | null>(null);
+
+  const handleSeed = async () => {
+    setSeedStatus('Seeding...')
+    try {
+      const res = await fetch('/api/seed-historical', { method: 'POST' })
+      const data = await res.json()
+      setSeedStatus(data.seeded > 0
+        ? `✅ ${data.seeded} bets seeded`
+        : data.message || 'Done')
+    } catch {
+      setSeedStatus('❌ Seed failed')
+    }
+    setTimeout(() => setSeedStatus(null), 6000)
+  }
+
+  const handleTrain = async () => {
+    setTrainStatus('Training...')
+    try {
+      const res = await fetch('/api/train', { method: 'POST', headers: { authorization: `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || ''}` } })
+      const data = await res.json()
+      setTrainStatus(data.success ? '✅ Model trained' : `⚠️ ${data.message || data.error}`)
+    } catch {
+      setTrainStatus('❌ Train failed')
+    }
+    setTimeout(() => setTrainStatus(null), 6000)
+  }
 
   const handleModeChange = async (newMode: ControlMode) => {
     setLoading(true);
@@ -77,6 +105,33 @@ export default function Controls() {
 
       <div className="text-xs text-zinc-500 text-center">
         Emergency execution stop
+      </div>
+
+      {/* Training tools */}
+      <div className="pt-4 border-t border-zinc-800 space-y-2">
+        <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
+          Model Training
+        </div>
+
+        <button
+          onClick={handleSeed}
+          disabled={!!seedStatus}
+          className="w-full py-2 rounded-lg text-xs font-semibold bg-blue-900/40 border border-blue-700/40 text-blue-300 hover:bg-blue-900/60 disabled:opacity-60 transition-all"
+        >
+          {seedStatus || '📥 Seed Historical Data'}
+        </button>
+
+        <button
+          onClick={handleTrain}
+          disabled={!!trainStatus}
+          className="w-full py-2 rounded-lg text-xs font-semibold bg-purple-900/40 border border-purple-700/40 text-purple-300 hover:bg-purple-900/60 disabled:opacity-60 transition-all"
+        >
+          {trainStatus || '🧠 Train Model Now'}
+        </button>
+
+        <div className="text-xs text-zinc-600 text-center">
+          Seed first, then train
+        </div>
       </div>
     </div>
   );
